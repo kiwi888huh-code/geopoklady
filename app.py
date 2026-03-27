@@ -19,6 +19,10 @@ if "treasures" not in st.session_state:
     else:
         st.session_state.treasures = []
 
+# stav pro rozbalení detailu
+if "open_detail" not in st.session_state:
+    st.session_state.open_detail = None
+
 # ====== ADD TREASURE ======
 st.header("Přidat poklad")
 
@@ -58,21 +62,42 @@ if st.button("Přidat poklad"):
     else:
         st.warning("Zadej název")
 
-# ====== LIST + DELETE ======
+# ====== LIST + DELETE + DETAIL ======
 st.header("Seznam pokladů")
 
 if st.session_state.treasures:
     for i, t in enumerate(st.session_state.treasures):
-        col1, col2 = st.columns([4,1])
+        col1, col2, col3 = st.columns([4,1,1])
+
         col1.write(f"• {t['name']}")
 
-        if col2.button("❌", key=f"delete_{i}"):
+        # INFO tlačítko (toggle)
+        if col2.button("ℹ️", key=f"info_{i}"):
+            if st.session_state.open_detail == i:
+                st.session_state.open_detail = None
+            else:
+                st.session_state.open_detail = i
+
+        # DELETE tlačítko
+        if col3.button("❌", key=f"delete_{i}"):
             st.session_state.treasures.pop(i)
 
             with open("poklady.json", "w") as f:
                 json.dump(st.session_state.treasures, f)
 
+            st.session_state.open_detail = None
             st.rerun()
+
+        # DETAIL (zobrazení)
+        if st.session_state.open_detail == i:
+            st.markdown(f"""
+**Typy:** {t['types']}  
+**Terén:** {t['terrain_min']} – {t['terrain_max']}  
+**Obtížnost:** {t['difficulty_min']} – {t['difficulty_max']}  
+**Velikosti:** {t['sizes']}  
+**Min. srdíčka:** {t['fav_min']}  
+**Atributy:** {t['attrs']}
+""")
 else:
     st.write("Žádné poklady")
 
@@ -103,7 +128,7 @@ def match(t, c):
     if c["fav"] < t["fav_min"]:
         return False
 
-    # 🔥 KLÍČOVÁ ZMĚNA: atributy = musí být obsažené
+    # atributy = podmnožina
     if not set(t["attrs"]).issubset(set(c["attrs"])):
         return False
 
