@@ -8,6 +8,7 @@ CACHE_TYPES = ["Traditional","Multi","Mystery","Virtual","Earthcache","Letterbox
 SIZES = ["micro","small","regular","large","other"]
 ATTRIBUTES = ["děti","psi","speciální nástroj","drive-in","vyhlídka"]
 
+# ====== LOAD ======
 if "treasures" not in st.session_state:
     if os.path.exists("poklady.json"):
         try:
@@ -18,6 +19,7 @@ if "treasures" not in st.session_state:
     else:
         st.session_state.treasures = []
 
+# ====== ADD TREASURE ======
 st.header("Přidat poklad")
 
 name = st.text_input("Název pokladu")
@@ -31,7 +33,7 @@ difficulty_max = st.slider("Obtížnost max", 0.5, 5.0, 5.0, 0.5)
 
 sizes = st.multiselect("Velikosti", SIZES)
 fav_min = st.number_input("Minimální srdíčka", 0, 10000, 0)
-attrs = st.multiselect("Atributy (musí být stejné)", ATTRIBUTES)
+attrs = st.multiselect("Požadované atributy", ATTRIBUTES)
 
 if st.button("Přidat poklad"):
     if name.strip() != "":
@@ -52,43 +54,62 @@ if st.button("Přidat poklad"):
         with open("poklady.json", "w") as f:
             json.dump(st.session_state.treasures, f)
 
-        st.success("Uloženo")
+        st.success("Poklad uložen")
+    else:
+        st.warning("Zadej název")
 
+# ====== LIST + DELETE ======
 st.header("Seznam pokladů")
 
-for i, t in enumerate(st.session_state.treasures):
-    col1, col2 = st.columns([4,1])
-    col1.write("• " + t["name"])
-    if col2.button("❌", key=i):
-        st.session_state.treasures.pop(i)
-        with open("poklady.json", "w") as f:
-            json.dump(st.session_state.treasures, f)
-        st.experimental_rerun()
+if st.session_state.treasures:
+    for i, t in enumerate(st.session_state.treasures):
+        col1, col2 = st.columns([4,1])
+        col1.write(f"• {t['name']}")
 
+        if col2.button("❌", key=f"delete_{i}"):
+            st.session_state.treasures.pop(i)
+
+            with open("poklady.json", "w") as f:
+                json.dump(st.session_state.treasures, f)
+
+            st.rerun()
+else:
+    st.write("Žádné poklady")
+
+# ====== CACHE INPUT ======
 st.header("Zadej keš")
 
-cache_type = st.selectbox("Typ", CACHE_TYPES)
+cache_type = st.selectbox("Typ keše", CACHE_TYPES)
 cache_terrain = st.slider("Terén", 0.5, 5.0, 1.0, 0.5)
 cache_difficulty = st.slider("Obtížnost", 0.5, 5.0, 1.0, 0.5)
 cache_size = st.selectbox("Velikost", SIZES)
 cache_fav = st.number_input("Srdíčka", 0, 10000, 0)
-cache_attrs = st.multiselect("Atributy", ATTRIBUTES)
+cache_attrs = st.multiselect("Atributy keše", ATTRIBUTES)
 
+# ====== MATCH ======
 def match(t, c):
     if t["types"] and c["type"] not in t["types"]:
         return False
+
     if not (t["terrain_min"] <= c["terrain"] <= t["terrain_max"]):
         return False
+
     if not (t["difficulty_min"] <= c["difficulty"] <= t["difficulty_max"]):
         return False
+
     if t["sizes"] and c["size"] not in t["sizes"]:
         return False
+
     if c["fav"] < t["fav_min"]:
         return False
-    if set(t["attrs"]) != set(c["attrs"]):
+
+    # 🔥 KLÍČOVÁ ZMĚNA: atributy = musí být obsažené
+    if not set(t["attrs"]).issubset(set(c["attrs"])):
         return False
+
     return True
 
+# ====== EVALUATE ======
 if st.button("Vyhodnotit"):
     cache = {
         "type": cache_type,
@@ -99,14 +120,16 @@ if st.button("Vyhodnotit"):
         "attrs": cache_attrs
     }
 
-    vysledek = []
+    result = []
 
     for t in st.session_state.treasures:
         if match(t, cache):
-            vysledek.append(t["name"])
+            result.append(t["name"])
 
-    if vysledek:
-        for v in vysledek:
-            st.write("✔", v)
+    st.subheader("Vhodné poklady:")
+
+    if result:
+        for r in result:
+            st.write("✔", r)
     else:
         st.write("Žádný poklad nesplňuje podmínky")
