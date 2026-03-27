@@ -102,7 +102,9 @@ if st.button("Vyhodnotit"):
         for v in valid:
             st.write("✔", v)
     else:
-        st.write("Žádný poklad nesplňuje podmínky")import streamlit as st
+        st.write("Žádný poklad nesplňuje podmínky")
+        
+import streamlit as st
 
 st.title("Geocaching – výběr pokladů")
 
