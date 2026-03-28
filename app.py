@@ -2,6 +2,20 @@ import streamlit as st
 import json
 import os
 
+# ====== ŠEDÁ TLAČÍTKA ======
+st.markdown("""
+<style>
+div.stButton > button {
+    background-color: #444444;
+    color: white;
+    border-radius: 8px;
+}
+div.stButton > button:hover {
+    background-color: #666666;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("Geocaching – výběr pokladů")
 
 CACHE_TYPES = ["💚Traditional💚","🧡Multi🧡","💙Mystery💙","🩵Virtual🩵","🌍Earthcache🌍","📬Letterbox📬","🧭Wherigo🧭","❤️Event❤️","🪾CITO🪾"]
@@ -19,10 +33,12 @@ if "treasures" not in st.session_state:
     else:
         st.session_state.treasures = []
 
-# 👉 DOPLNÍ missing "remaining" u starých dat
+# 👉 OPRAVA: sjednocení dat
 for t in st.session_state.treasures:
-    if "remaining" not in t:
-        t["remaining"] = 0
+    t.setdefault("remaining", 0)
+    t.setdefault("types", CACHE_TYPES)
+    t.setdefault("sizes", SIZES)
+    t.setdefault("attrs", [])
 
 if "form_id" not in st.session_state:
     st.session_state.form_id = 0
@@ -49,8 +65,21 @@ default = {
     "remaining": 0
 }
 
+# 👉 OPRAVA: bezpečné načtení pro edit
 if st.session_state.edit_index is not None:
-    default = st.session_state.treasures[st.session_state.edit_index]
+    t = st.session_state.treasures[st.session_state.edit_index]
+    default = {
+        "name": t.get("name", ""),
+        "types": t.get("types", CACHE_TYPES),
+        "terrain_min": t.get("terrain_min", 0.5),
+        "terrain_max": t.get("terrain_max", 5.0),
+        "difficulty_min": t.get("difficulty_min", 0.5),
+        "difficulty_max": t.get("difficulty_max", 5.0),
+        "sizes": t.get("sizes", SIZES),
+        "fav_min": t.get("fav_min", 0),
+        "attrs": t.get("attrs", []),
+        "remaining": t.get("remaining", 0)
+    }
 
 form_key = f"form_{st.session_state.form_id}"
 
@@ -68,7 +97,6 @@ with st.form(form_key):
     fav_min = st.number_input("Minimální srdíčka", 0, 10000, default["fav_min"])
     attrs = st.multiselect("Atributy", ATTRIBUTES, default=default["attrs"])
 
-    # 👉 NOVÉ POLE
     remaining = st.number_input("Zbývá keší", 0, 1000, default["remaining"])
 
     submitted = st.form_submit_button("Uložit")
