@@ -19,22 +19,34 @@ if "treasures" not in st.session_state:
         st.session_state.treasures = []
 
 # ===== STAVY =====
-if "show_list" not in st.session_state:
-    st.session_state.show_list = True
-
-if "open_detail" not in st.session_state:
-    st.session_state.open_detail = None
-
-if "open_detail_result" not in st.session_state:
-    st.session_state.open_detail_result = None
-
-if "edit_index" not in st.session_state:
-    st.session_state.edit_index = None
+for key, default in {
+    "show_list": True,
+    "open_detail": None,
+    "open_detail_result": None,
+    "edit_index": None,
+    "results": [],
+    "confirm_use": None,
+    "confirm_delete": None
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 # ===== SAVE =====
 def save():
     with open(FILE, "w") as f:
         json.dump(st.session_state.treasures, f)
+
+# ===== DETAIL FUNKCE =====
+def show_detail(t):
+    st.markdown(f"""
+**Typy:** {", ".join(t['types']) if t['types'] else "—"}  
+**Terén:** {t['terrain_min']} – {t['terrain_max']}  
+**Obtížnost:** {t['difficulty_min']} – {t['difficulty_max']}  
+**Velikosti:** {", ".join(t['sizes']) if t['sizes'] else "—"}  
+**Min. srdíčka:** {t['fav_min']}  
+**Atributy:** {", ".join(t['attrs']) if t['attrs'] else "—"}  
+**Zbývá:** {t['remaining']}
+""")
 
 # ===== FORM =====
 st.header("Přidat / upravit poklad")
@@ -100,32 +112,43 @@ if st.button("Zobrazit / skrýt seznam"):
 if st.session_state.show_list:
     st.header("Seznam pokladů")
 
-    # ✔ řazení + zachování indexu
     sorted_treasures = sorted(
         list(enumerate(st.session_state.treasures)),
         key=lambda x: (x[1]["remaining"], x[1]["name"])
     )
 
-    for original_index, t in sorted_treasures:
+    for i, t in sorted_treasures:
         col1, col2, col3, col4, col5 = st.columns([4,2,1,1,1])
 
         col1.write(t["name"])
         col2.write(t["remaining"])
 
-        if col3.button("ℹ️", key=f"info_{original_index}"):
-            st.session_state.open_detail = original_index if st.session_state.open_detail != original_index else None
+        if col3.button("ℹ️", key=f"info_{i}"):
+            st.session_state.open_detail = i if st.session_state.open_detail != i else None
 
-        if col4.button("✏️", key=f"edit_{original_index}"):
-            st.session_state.edit_index = original_index
+        if col4.button("✏️", key=f"edit_{i}"):
+            st.session_state.edit_index = i
             st.rerun()
 
-        if col5.button("❌", key=f"del_{original_index}"):
-            st.session_state.treasures.pop(original_index)
-            save()
-            st.rerun()
+        if col5.button("❌", key=f"del_{i}"):
+            st.session_state.confirm_delete = i
 
-        if st.session_state.open_detail == original_index:
-            st.write(t)
+        if st.session_state.open_detail == i:
+            show_detail(t)
+
+        # potvrzení smazání
+        if st.session_state.confirm_delete == i:
+            st.warning(f"Opravdu smazat '{t['name']}'?")
+            c1, c2 = st.columns(2)
+
+            if c1.button("Ano", key=f"del_yes_{i}"):
+                st.session_state.treasures.pop(i)
+                st.session_state.confirm_delete = None
+                save()
+                st.rerun()
+
+            if c2.button("Ne", key=f"del_no_{i}"):
+                st.session_state.confirm_delete = None
 
 # ===== CACHE =====
 st.header("Zadej keš")
@@ -152,12 +175,7 @@ def match(t, c):
         return False
     return True
 
-# ===== VÝSLEDKY =====
-# ====== VÝSLEDKY ======
-
-if "results" not in st.session_state:
-    st.session_state.results = []
-
+# ===== VYHODNOCENÍ =====
 if st.button("Vyhodnotit"):
     cache = {
         "type": cache_type,
@@ -168,21 +186,15 @@ if st.button("Vyhodnotit"):
         "attrs": cache_attrs
     }
 
-    results = [
-        (i, t) for i, t in enumerate(st.session_state.treasures) if match(t, cache)
-    ]
+    results = [(i, t) for i, t in enumerate(st.session_state.treasures) if match(t, cache)]
+    st.session_state.results = sorted(results, key=lambda x: (x[1]["remaining"], x[1]["name"]))
 
-    st.session_state.results = sorted(
-        results,
-        key=lambda x: (x[1]["remaining"], x[1]["name"])
-    )
-
-# ====== VÝPIS ======
+# ===== VÝPIS =====
 st.subheader("Vhodné poklady:")
 
 if st.session_state.results:
     for i, t in st.session_state.results:
-        col1, col2, col3 = st.columns([4,2,1])
+        col1, col2, col3, col4 = st.columns([4,2,1,1])
 
         col1.write(t["name"])
         col2.write(t["remaining"])
@@ -190,15 +202,25 @@ if st.session_state.results:
         if col3.button("ℹ️", key=f"res_info_{i}"):
             st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
 
+        if col4.button("✅", key=f"use_{i}"):
+            st.session_state.confirm_use = i
+
         if st.session_state.open_detail_result == i:
-            st.markdown(f"""
-**Typy:** {t['types']}  
-**Terén:** {t['terrain_min']} – {t['terrain_max']}  
-**Obtížnost:** {t['difficulty_min']} – {t['difficulty_max']}  
-**Velikosti:** {t['sizes']}  
-**Min. srdíčka:** {t['fav_min']}  
-**Atributy:** {t['attrs']}  
-**Zbývá:** {t['remaining']}
-""")
+            show_detail(t)
+
+        # potvrzení použití
+        if st.session_state.confirm_use == i:
+            st.warning(f"Opravdu použít '{t['name']}'?")
+            c1, c2 = st.columns(2)
+
+            if c1.button("Ano", key=f"use_yes_{i}"):
+                if st.session_state.treasures[i]["remaining"] > 0:
+                    st.session_state.treasures[i]["remaining"] -= 1
+                    save()
+                st.session_state.confirm_use = None
+                st.rerun()
+
+            if c2.button("Ne", key=f"use_no_{i}"):
+                st.session_state.confirm_use = None
 else:
     st.write("Žádný poklad nesplňuje podmínky")
