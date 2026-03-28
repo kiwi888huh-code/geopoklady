@@ -153,6 +153,11 @@ def match(t, c):
     return True
 
 # ===== VÝSLEDKY =====
+# ====== VÝSLEDKY ======
+
+if "results" not in st.session_state:
+    st.session_state.results = []
+
 if st.button("Vyhodnotit"):
     cache = {
         "type": cache_type,
@@ -167,21 +172,33 @@ if st.button("Vyhodnotit"):
         (i, t) for i, t in enumerate(st.session_state.treasures) if match(t, cache)
     ]
 
-    results = sorted(results, key=lambda x: (x[1]["remaining"], x[1]["name"]))
+    st.session_state.results = sorted(
+        results,
+        key=lambda x: (x[1]["remaining"], x[1]["name"])
+    )
 
-    st.subheader("Vhodné poklady:")
+# ====== VÝPIS ======
+st.subheader("Vhodné poklady:")
 
-    if results:
-        for i, t in results:
-            col1, col2, col3 = st.columns([4,2,1])
+if st.session_state.results:
+    for i, t in st.session_state.results:
+        col1, col2, col3 = st.columns([4,2,1])
 
-            col1.write(t["name"])
-            col2.write(t["remaining"])
+        col1.write(t["name"])
+        col2.write(t["remaining"])
 
-            if col3.button("ℹ️", key=f"res_info_{i}"):
-                st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
+        if col3.button("ℹ️", key=f"res_info_{i}"):
+            st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
 
-            if st.session_state.open_detail_result == i:
-                st.write(t)
-    else:
-        st.write("Žádný poklad nesplňuje podmínky")
+        if st.session_state.open_detail_result == i:
+            st.markdown(f"""
+**Typy:** {t['types']}  
+**Terén:** {t['terrain_min']} – {t['terrain_max']}  
+**Obtížnost:** {t['difficulty_min']} – {t['difficulty_max']}  
+**Velikosti:** {t['sizes']}  
+**Min. srdíčka:** {t['fav_min']}  
+**Atributy:** {t['attrs']}  
+**Zbývá:** {t['remaining']}
+""")
+else:
+    st.write("Žádný poklad nesplňuje podmínky")
