@@ -4,109 +4,155 @@ import os
 
 st.title("Geocaching – výběr pokladů")
 
-# ====== DATA ======
 CACHE_TYPES = ["Traditional","Multi","Mystery","Virtual","Earthcache","Letterbox","Event","CITO","Wherigo"]
 SIZES = ["micro","small","regular","large","other"]
-ATTRIBUTES = ["děti","psi","speciální nástroj","drive-in","vyhlídka"]
+ATTRIBUTES = ["děti","psi","speciální nástroj","drive-in","vyhlídka","24/7"]
 
-FILE = "treasures.json"
-
-# ====== NAČTENÍ ======
+# ====== LOAD ======
 if "treasures" not in st.session_state:
-    if os.path.exists(FILE):
-        with open(FILE, "r", encoding="utf-8") as f:
-            st.session_state.treasures = json.load(f)
+    if os.path.exists("poklady.json"):
+        try:
+            with open("poklady.json", "r") as f:
+                st.session_state.treasures = json.load(f)
+        except:
+            st.session_state.treasures = []
     else:
         st.session_state.treasures = []
 
-# ====== ULOŽENÍ FUNKCE ======
-def save_data():
-    with open(FILE, "w", encoding="utf-8") as f:
-        json.dump(st.session_state.treasures, f, ensure_ascii=False, indent=2)
+if "form_id" not in st.session_state:
+    st.session_state.form_id = 0
 
-# ====== PŘIDAT POKLAD ======
-st.header("Přidat poklad")
+if "open_detail" not in st.session_state:
+    st.session_state.open_detail = None
 
-name = st.text_input("Název")
-types = st.multiselect("Typy keší", CACHE_TYPES)
+if "edit_index" not in st.session_state:
+    st.session_state.edit_index = None
 
-terrain_min = st.slider("Terén min", 0.5, 5.0, 1.0, 0.5)
-terrain_max = st.slider("Terén max", 0.5, 5.0, 5.0, 0.5)
+# ====== FORM ======
+st.header("Přidat / upravit poklad")
 
-difficulty_min = st.slider("Obtížnost min", 0.5, 5.0, 1.0, 0.5)
-difficulty_max = st.slider("Obtížnost max", 0.5, 5.0, 5.0, 0.5)
+# defaulty
+default = {
+    "name": "",
+    "types": CACHE_TYPES,
+    "terrain_min": 0.5,
+    "terrain_max": 5.0,
+    "difficulty_min": 0.5,
+    "difficulty_max": 5.0,
+    "sizes": SIZES,
+    "fav_min": 0,
+    "attrs": []
+}
 
-sizes = st.multiselect("Velikosti", SIZES)
+# pokud editujeme
+if st.session_state.edit_index is not None:
+    default = st.session_state.treasures[st.session_state.edit_index]
 
-fav_min = st.number_input("Minimální počet srdíček", 0, 10000, 0)
+form_key = f"form_{st.session_state.form_id}"
 
-attrs = st.multiselect("Požadované atributy", ATTRIBUTES)
+with st.form(form_key):
+    name = st.text_input("Název pokladu", value=default["name"])
+    types = st.multiselect("Typy keší", CACHE_TYPES, default=default["types"])
 
-remaining = st.number_input("Zbývá keší", 0, 1000, 0)
+    terrain_min = st.slider("Terén min", 0.5, 5.0, default["terrain_min"], 0.5)
+    terrain_max = st.slider("Terén max", 0.5, 5.0, default["terrain_max"], 0.5)
 
-if st.button("Přidat poklad"):
-    st.session_state.treasures.append({
-        "name": name,
-        "types": types,
-        "terrain_min": terrain_min,
-        "terrain_max": terrain_max,
-        "difficulty_min": difficulty_min,
-        "difficulty_max": difficulty_max,
-        "sizes": sizes,
-        "fav_min": fav_min,
-        "attrs": attrs,
-        "remaining": remaining
-    })
-    save_data()
+    difficulty_min = st.slider("Obtížnost min", 0.5, 5.0, default["difficulty_min"], 0.5)
+    difficulty_max = st.slider("Obtížnost max", 0.5, 5.0, default["difficulty_max"], 0.5)
 
-# ====== SEZNAM ======
+    sizes = st.multiselect("Velikosti", SIZES, default=default["sizes"])
+    fav_min = st.number_input("Minimální srdíčka", 0, 10000, default["fav_min"])
+    attrs = st.multiselect("Atributy", ATTRIBUTES, default=default["attrs"])
+
+    submitted = st.form_submit_button("Uložit")
+
+if submitted:
+    if name.strip() != "":
+        new_data = {
+            "name": name,
+            "types": types,
+            "terrain_min": terrain_min,
+            "terrain_max": terrain_max,
+            "difficulty_min": difficulty_min,
+            "difficulty_max": difficulty_max,
+            "sizes": sizes,
+            "fav_min": fav_min,
+            "attrs": attrs
+        }
+
+        if st.session_state.edit_index is None:
+            st.session_state.treasures.append(new_data)
+        else:
+            st.session_state.treasures[st.session_state.edit_index] = new_data
+            st.session_state.edit_index = None
+
+        with open("poklady.json", "w") as f:
+            json.dump(st.session_state.treasures, f)
+
+        # reset formuláře (MAGIE)
+        st.session_state.form_id += 1
+        st.rerun()
+
+# ====== LIST ======
 st.header("Seznam pokladů")
 
 for i, t in enumerate(st.session_state.treasures):
-    col1, col2, col3 = st.columns([4,2,1])
+    col1, col2, col3, col4 = st.columns([4,1,1,1])
 
-    col1.write(f"**{t['name']}**")
-    col2.write(f"Zbývá: {t['remaining']}")
+    col1.write(f"• {t['name']}")
 
-    if col3.button("❌", key=f"del_{i}"):
-        st.session_state.treasures.pop(i)
-        save_data()
+    if col2.button("ℹ️", key=f"info_{i}"):
+        st.session_state.open_detail = i if st.session_state.open_detail != i else None
+
+    if col3.button("✏️", key=f"edit_{i}"):
+        st.session_state.edit_index = i
+        st.session_state.form_id += 1
         st.rerun()
+
+    if col4.button("❌", key=f"delete_{i}"):
+        st.session_state.treasures.pop(i)
+
+        with open("poklady.json", "w") as f:
+            json.dump(st.session_state.treasures, f)
+
+        st.session_state.open_detail = None
+        st.rerun()
+
+    if st.session_state.open_detail == i:
+        st.markdown(f"""
+**Typy:** {t['types']}  
+**Terén:** {t['terrain_min']} – {t['terrain_max']}  
+**Obtížnost:** {t['difficulty_min']} – {t['difficulty_max']}  
+**Velikosti:** {t['sizes']}  
+**Min. srdíčka:** {t['fav_min']}  
+**Atributy:** {t['attrs']}
+""")
 
 # ====== CACHE ======
 st.header("Zadej keš")
 
 cache_type = st.selectbox("Typ keše", CACHE_TYPES)
-cache_terrain = st.slider("Terén", 0.5, 5.0, 1.0, 0.5)
-cache_difficulty = st.slider("Obtížnost", 0.5, 5.0, 1.0, 0.5)
+cache_terrain = st.slider("Terén", 0.5, 5.0, 0.5, 0.5)
+cache_difficulty = st.slider("Obtížnost", 0.5, 5.0, 0.5, 0.5)
 cache_size = st.selectbox("Velikost", SIZES)
-cache_fav = st.number_input("Počet srdíček", 0, 10000, 0)
+cache_fav = st.number_input("Srdíčka", 0, 10000, 0)
 cache_attrs = st.multiselect("Atributy keše", ATTRIBUTES)
 
-# ====== MATCH ======
-def matches(t, c):
+def match(t, c):
     if t["types"] and c["type"] not in t["types"]:
         return False
-
     if not (t["terrain_min"] <= c["terrain"] <= t["terrain_max"]):
         return False
-
     if not (t["difficulty_min"] <= c["difficulty"] <= t["difficulty_max"]):
         return False
-
     if t["sizes"] and c["size"] not in t["sizes"]:
         return False
-
     if c["fav"] < t["fav_min"]:
         return False
-
-    for attr in t["attrs"]:
-        if attr not in c["attrs"]:
-            return False
-
+    if not set(t["attrs"]).issubset(set(c["attrs"])):
+        return False
     return True
 
-# ====== VYHODNOCENÍ ======
 if st.button("Vyhodnotit"):
     cache = {
         "type": cache_type,
@@ -117,16 +163,12 @@ if st.button("Vyhodnotit"):
         "attrs": cache_attrs
     }
 
-    valid = []
-
-    for t in st.session_state.treasures:
-        if matches(t, cache):
-            valid.append((t["name"], t["remaining"]))
+    result = [t["name"] for t in st.session_state.treasures if match(t, cache)]
 
     st.subheader("Vhodné poklady:")
 
-    if valid:
-        for name, remaining in valid:
-            st.write(f"✔ {name} (zbývá: {remaining})")
+    if result:
+        for r in result:
+            st.write("✔", r)
     else:
         st.write("Žádný poklad nesplňuje podmínky")
