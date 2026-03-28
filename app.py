@@ -101,11 +101,11 @@ if st.session_state.edit_index is not None:
     default = {
         "name": t.get("name", ""),
         "types": t.get("types", []),
-        "terrain_min": t.get("terrain_min", 0.5),
-        "terrain_max": t.get("terrain_max", 5.0),
+        "sizes": t.get("sizes", []),
         "difficulty_min": t.get("difficulty_min", 0.5),
         "difficulty_max": t.get("difficulty_max", 5.0),
-        "sizes": t.get("sizes", []),
+        "terrain_min": t.get("terrain_min", 0.5),
+        "terrain_max": t.get("terrain_max", 5.0),
         "fav_min": t.get("fav_min", 0),
         "attrs": t.get("attrs", []),
         "remaining": t.get("remaining", 0)
@@ -119,14 +119,14 @@ with st.form(form_key):
     safe_types = [x for x in default["types"] if x in CACHE_TYPES]
     types = st.multiselect("Typy keší", CACHE_TYPES, default=safe_types)
 
-    terrain_min = st.slider("Terén min", 0.5, 5.0, default["terrain_min"], 0.5)
-    terrain_max = st.slider("Terén max", 0.5, 5.0, default["terrain_max"], 0.5)
-
+    safe_sizes = [x for x in default["sizes"] if x in SIZES]
+    sizes = st.multiselect("Velikosti", SIZES, default=safe_sizes)
+    
     difficulty_min = st.slider("Obtížnost min", 0.5, 5.0, default["difficulty_min"], 0.5)
     difficulty_max = st.slider("Obtížnost max", 0.5, 5.0, default["difficulty_max"], 0.5)
 
-    safe_sizes = [x for x in default["sizes"] if x in SIZES]
-    sizes = st.multiselect("Velikosti", SIZES, default=safe_sizes)
+    terrain_min = st.slider("Terén min", 0.5, 5.0, default["terrain_min"], 0.5)
+    terrain_max = st.slider("Terén max", 0.5, 5.0, default["terrain_max"], 0.5)
 
     fav_min = st.number_input("Minimální srdíčka", 0, 10000, default["fav_min"])
 
@@ -203,9 +203,9 @@ for i, t in enumerate(st.session_state.treasures):
 st.header("Zadej keš")
 
 cache_type = st.selectbox("Typ keše", CACHE_TYPES)
-cache_terrain = st.slider("Terén", 0.5, 5.0, 0.5, 0.5)
-cache_difficulty = st.slider("Obtížnost", 0.5, 5.0, 0.5, 0.5)
 cache_size = st.selectbox("Velikost", SIZES)
+cache_difficulty = st.slider("Obtížnost", 0.5, 5.0, 0.5, 0.5)
+cache_terrain = st.slider("Terén", 0.5, 5.0, 0.5, 0.5)
 cache_fav = st.number_input("Srdíčka", 0, 10000, 0)
 cache_attrs = st.multiselect("Atributy keše", ATTRIBUTES)
 
