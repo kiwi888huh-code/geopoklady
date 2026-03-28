@@ -4,9 +4,9 @@ import os
 
 st.title("Geocaching – výběr pokladů")
 
-CACHE_TYPES = ["💚Traditional💚","Multi","Mystery","Virtual","Earthcache","Letterbox","Event","CITO","Wherigo"]
+CACHE_TYPES = ["💚Traditional💚","🧡Multi🧡","💙Mystery💙","🩵Virtual🩵","🌍Earthcache🌍","📬Letterbox📬","🧭Wherigo🧭","❤️Event❤️","🪾CITO🪾"]
 SIZES = ["micro","small","regular","large","other"]
-ATTRIBUTES = ["děti","psi","speciální nástroj","drive-in","vyhlídka","24/7"]
+ATTRIBUTES = ["👶děti👶","🐶psi🐶","🛠️speciální nástroj🛠️","🚗drive-in🚗","🔭vyhlídka🔭","🌞24/7🌞"]
 
 # ====== LOAD ======
 if "treasures" not in st.session_state:
