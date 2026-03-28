@@ -4,7 +4,7 @@ import os
 
 st.title("Geocaching – výběr pokladů")
 
-CACHE_TYPES = ["Traditional","Multi","Mystery","Virtual","Earthcache","Letterbox","Event","CITO","Wherigo"]
+CACHE_TYPES = ["💚Traditional💚","Multi","Mystery","Virtual","Earthcache","Letterbox","Event","CITO","Wherigo"]
 SIZES = ["micro","small","regular","large","other"]
 ATTRIBUTES = ["děti","psi","speciální nástroj","drive-in","vyhlídka","24/7"]
 
