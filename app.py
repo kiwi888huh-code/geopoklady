@@ -25,7 +25,7 @@ CACHE_TYPES = ["💚Traditional💚","🧡Multi🧡","💙Mystery💙","🩵Virt
 SIZES = ["micro","small","regular","large","other"]
 ATTRIBUTES = ["👶děti👶","🐶psi🐶","🛠️speciální nástroj🛠️","🚗drive-in🚗","🔭vyhlídka🔭","🌞24/7🌞"]
 
-# ====== MAPOVÁNÍ STARÝCH HODNOT ======
+# ====== MAPOVÁNÍ STARÝCH DAT ======
 TYPE_MAP = {
     "Traditional": "💚Traditional💚",
     "Multi": "🧡Multi🧡",
@@ -36,6 +36,15 @@ TYPE_MAP = {
     "Wherigo": "🧭Wherigo🧭",
     "Event": "❤️Event❤️",
     "CITO": "🪾CITO🪾"
+}
+
+ATTRIBUTE_MAP = {
+    "děti": "👶děti👶",
+    "psi": "🐶psi🐶",
+    "speciální nástroj": "🛠️speciální nástroj🛠️",
+    "drive-in": "🚗drive-in🚗",
+    "vyhlídka": "🔭vyhlídka🔭",
+    "24/7": "🌞24/7🌞"
 }
 
 # ====== LOAD ======
@@ -56,8 +65,11 @@ for t in st.session_state.treasures:
     t.setdefault("sizes", [])
     t.setdefault("attrs", [])
 
-    # 👉 převod starých typů na nové
+    # převod typů
     t["types"] = [TYPE_MAP.get(x, x) for x in t["types"]]
+
+    # převod atributů
+    t["attrs"] = [ATTRIBUTE_MAP.get(x, x) for x in t["attrs"]]
 
 if "form_id" not in st.session_state:
     st.session_state.form_id = 0
