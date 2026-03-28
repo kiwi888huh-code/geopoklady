@@ -1,6 +1,4 @@
 import streamlit as st
-import json
-import os
 
 st.title("Geocaching – výběr pokladů")
 
@@ -9,27 +7,15 @@ CACHE_TYPES = ["Traditional","Multi","Mystery","Virtual","Earthcache","Letterbox
 SIZES = ["micro","small","regular","large","other"]
 ATTRIBUTES = ["děti","psi","speciální nástroj","drive-in","vyhlídka"]
 
-FILE = "treasures.json"
-
-# ====== NAČTENÍ ======
 if "treasures" not in st.session_state:
-    if os.path.exists(FILE):
-        with open(FILE, "r", encoding="utf-8") as f:
-            st.session_state.treasures = json.load(f)
-    else:
-        st.session_state.treasures = []
-
-# ====== ULOŽENÍ FUNKCE ======
-def save_data():
-    with open(FILE, "w", encoding="utf-8") as f:
-        json.dump(st.session_state.treasures, f, ensure_ascii=False, indent=2)
+    st.session_state.treasures = []
 
 # ====== PŘIDAT POKLAD ======
 st.header("Přidat poklad")
 
 name = st.text_input("Název")
-types = st.multiselect("Typy keší", CACHE_TYPES)
 
+types = st.multiselect("Typy keší", CACHE_TYPES)
 terrain_min = st.slider("Terén min", 0.5, 5.0, 1.0, 0.5)
 terrain_max = st.slider("Terén max", 0.5, 5.0, 5.0, 0.5)
 
@@ -42,6 +28,7 @@ fav_min = st.number_input("Minimální počet srdíček", 0, 10000, 0)
 
 attrs = st.multiselect("Požadované atributy", ATTRIBUTES)
 
+# 👉 NOVÉ POLE
 remaining = st.number_input("Zbývá keší", 0, 1000, 0)
 
 if st.button("Přidat poklad"):
@@ -57,21 +44,12 @@ if st.button("Přidat poklad"):
         "attrs": attrs,
         "remaining": remaining
     })
-    save_data()
 
 # ====== SEZNAM ======
 st.header("Seznam pokladů")
 
-for i, t in enumerate(st.session_state.treasures):
-    col1, col2, col3 = st.columns([4,2,1])
-
-    col1.write(f"**{t['name']}**")
-    col2.write(f"Zbývá: {t['remaining']}")
-
-    if col3.button("❌", key=f"del_{i}"):
-        st.session_state.treasures.pop(i)
-        save_data()
-        st.rerun()
+for t in st.session_state.treasures:
+    st.write(f"• {t['name']} (zbývá: {t['remaining']})")
 
 # ====== CACHE ======
 st.header("Zadej keš")
