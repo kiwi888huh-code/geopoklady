@@ -11,19 +11,13 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 
-
 st.title("Geocaching – výběr pokladů")
 
 CACHE_TYPES = ["💚Traditional💚","🧡Multi🧡","💙Mystery💙","🩵Virtual🩵","🌍Earthcache🌍","📬Letterbox📬","🧭Wherigo🧭","❤️Event❤️","🪾CITO🪾"]
-
-
 SIZES = ["micro","small","regular","large","other"]
 ATTRIBUTES = ["👶děti👶","🐶psi🐶","🛠️speciální nástroj🛠️","🚗drive-in🚗","🔭vyhlídka🔭","🌞24/7🌞"]
 
 FILE = "poklady.json"
-
-
-
 
 # ===== LOAD =====
 def load_data():
@@ -39,7 +33,13 @@ for key, default in {
     "open_detail": None,
     "open_detail_result": None,
     "edit_index": None,
-@@ -43,212 +49,167 @@
+    "results": [],
+    "confirm_use": None,
+    "confirm_delete": None
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
+
 # ===== SAVE =====
 def save():
     try:
@@ -109,17 +109,6 @@ fav_min = st.number_input("Minimální srdíčka", 0, 10000, default["fav_min"])
 attrs = st.multiselect("Atributy", ATTRIBUTES, default=default["attrs"])
 remaining = st.number_input("Zbývá keší", 0, 1000, default["remaining"])
 
-
-
-
-
-
-
-
-
-
-
-
 if st.button("Uložit"):
     data = {
         "name": name,
@@ -133,8 +122,6 @@ if st.button("Uložit"):
         "attrs": attrs,
         "remaining": remaining
     }
-
-
 
     if st.session_state.edit_index is None:
         st.session_state.treasures.append(data)
