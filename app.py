@@ -1,14 +1,7 @@
-from supabase import create_client
 
 import streamlit as st
 import json
 import os
-
-SUPABASE_URL = "https://ycwkedvzyhsofbuhludk.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inljd2tlZHZ6eWhzb2ZidWhsdWRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NzUxNTMsImV4cCI6MjA5MDM1MTE1M30.ai6oiGESIWk4dxIG_tFb8FOuTMEhNeaymE7eWLpTsnk"
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
 
 st.title("Geocaching – výběr pokladů")
 
