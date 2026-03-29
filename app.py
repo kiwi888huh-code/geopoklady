@@ -1,4 +1,4 @@
-rom supabase import create_client
+from supabase import create_client
 
 import streamlit as st
 import json
