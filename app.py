@@ -20,12 +20,12 @@ ATTRIBUTES = ["👶děti👶","🐶psi🐶","🛠️speciální nástroj🛠️"
 FILE = "poklady.json"
 
 # ===== LOAD =====
+def load_data():
+    res = supabase.table("treasures").select("*").execute()
+    return res.data
+
 if "treasures" not in st.session_state:
-    if os.path.exists(FILE):
-        with open(FILE, "r") as f:
-            st.session_state.treasures = json.load(f)
-    else:
-        st.session_state.treasures = []
+    st.session_state.treasures = load_data()
 
 # ===== STAVY =====
 for key, default in {
@@ -42,8 +42,23 @@ for key, default in {
 
 # ===== SAVE =====
 def save():
-    with open(FILE, "w") as f:
-        json.dump(st.session_state.treasures, f)
+    # smaže všechno v databázi
+    supabase.table("treasures").delete().neq("id", 0).execute()
+
+    # znovu nahraje všechny poklady
+    for t in st.session_state.treasures:
+        supabase.table("treasures").insert({
+            "name": t["name"],
+            "types": t["types"],
+            "terrain_min": t["terrain_min"],
+            "terrain_max": t["terrain_max"],
+            "difficulty_min": t["difficulty_min"],
+            "difficulty_max": t["difficulty_max"],
+            "sizes": t["sizes"],
+            "fav_min": t["fav_min"],
+            "attrs": t["attrs"],
+            "remaining": t["remaining"]
+        }).execute()
 
 # ===== DETAIL FUNKCE =====
 def show_detail(t):
