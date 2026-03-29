@@ -42,23 +42,27 @@ for key, default in {
 
 # ===== SAVE =====
 def save():
-    # smaže všechno v databázi
-    supabase.table("treasures").delete().neq("id", 0).execute()
+    try:
+        # smaže všechno
+        supabase.table("treasures").delete().neq("id", 0).execute()
 
-    # znovu nahraje všechny poklady
-    for t in st.session_state.treasures:
-        supabase.table("treasures").insert({
-            "name": t["name"],
-            "types": t["types"],
-            "terrain_min": t["terrain_min"],
-            "terrain_max": t["terrain_max"],
-            "difficulty_min": t["difficulty_min"],
-            "difficulty_max": t["difficulty_max"],
-            "sizes": t["sizes"],
-            "fav_min": t["fav_min"],
-            "attrs": t["attrs"],
-            "remaining": t["remaining"]
-        }).execute()
+        # nahraje nové
+        for t in st.session_state.treasures:
+            supabase.table("treasures").insert({
+                "name": t.get("name", ""),
+                "types": t.get("types", []),
+                "terrain_min": t.get("terrain_min", 0),
+                "terrain_max": t.get("terrain_max", 5),
+                "difficulty_min": t.get("difficulty_min", 0),
+                "difficulty_max": t.get("difficulty_max", 5),
+                "sizes": t.get("sizes", []),
+                "fav_min": t.get("fav_min", 0),
+                "attrs": t.get("attrs", []),
+                "remaining": t.get("remaining", 0)
+            }).execute()
+
+    except Exception as e:
+        st.error(f"Chyba při ukládání: {e}")
 
 # ===== DETAIL FUNKCE =====
 def show_detail(t):
