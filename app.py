@@ -16,12 +16,26 @@ ATTRIBUTES = ["👶děti👶","🐶psi🐶","🛠️speciální nástroj🛠️"
 def load_data():
     try:
         res = supabase.table("treasures").select("*").execute()
-        return res.data or []
+        data = res.data or []
+
+        # 🔥 OPRAVA DAT
+        for t in data:
+            t["difficulty_min"] = float(t.get("difficulty_min") or 0.5)
+            t["difficulty_max"] = float(t.get("difficulty_max") or 5.0)
+            t["terrain_min"] = float(t.get("terrain_min") or 0.5)
+            t["terrain_max"] = float(t.get("terrain_max") or 5.0)
+
+            t["fav_min"] = int(t.get("fav_min") or 0)
+            t["remaining"] = int(t.get("remaining") or 0)
+
+            t["types"] = t.get("types") or []
+            t["sizes"] = t.get("sizes") or []
+            t["attrs"] = t.get("attrs") or []
+
+        return data
+
     except:
         return []
-
-if "treasures" not in st.session_state:
-    st.session_state.treasures = load_data()
 
 # ===== STAVY =====
 for key, default in {
