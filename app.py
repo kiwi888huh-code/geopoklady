@@ -18,25 +18,44 @@ def load_data():
         res = supabase.table("treasures").select("*").execute()
         data = res.data or []
 
-        # 🔥 OPRAVA DAT
+        clean_data = []
+
         for t in data:
-            t["difficulty_min"] = float(t.get("difficulty_min") or 0.5)
-            t["difficulty_max"] = float(t.get("difficulty_max") or 5.0)
-            t["terrain_min"] = float(t.get("terrain_min") or 0.5)
-            t["terrain_max"] = float(t.get("terrain_max") or 5.0)
+            try:
+                clean_data.append({
+                    "name": str(t.get("name", "")),
 
-            t["fav_min"] = int(t.get("fav_min") or 0)
-            t["remaining"] = int(t.get("remaining") or 0)
+                    "types": t.get("types") or [],
+                    "sizes": t.get("sizes") or [],
+                    "attrs": t.get("attrs") or [],
 
-            t["types"] = t.get("types") or []
-            t["sizes"] = t.get("sizes") or []
-            t["attrs"] = t.get("attrs") or []
+                    "terrain_min": float(t.get("terrain_min") or 0.5),
+                    "terrain_max": float(t.get("terrain_max") or 5.0),
 
-        return data
+                    "difficulty_min": float(t.get("difficulty_min") or 0.5),
+                    "difficulty_max": float(t.get("difficulty_max") or 5.0),
 
-    except:
+                    "fav_min": int(t.get("fav_min") or 0),
+                    "remaining": max(0, int(t.get("remaining") or 0))  # 🔥 nikdy záporné
+                })
+            except:
+                # když je jeden poklad rozbitý → přeskoč ho
+                continue
+
+        return clean_data
+
+    except Exception as e:
+        st.error(f"Chyba při načítání databáze: {e}")
         return []
 
+
+# ===== INIT SESSION =====
+if "treasures" not in st.session_state:
+    st.session_state.treasures = []
+
+data = load_data()
+if isinstance(data, list):
+    st.session_state.treasures = data
 # ===== STAVY =====
 for key, default in {
     "show_list": False,   # 🔴 defaultně skrytý
