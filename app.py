@@ -198,41 +198,50 @@ if st.button("Zobrazit / skrýt seznam pokladů"):
 if st.session_state.show_list:
     st.header("Seznam pokladů")
 
-    sorted_treasures = sorted(
-        list(enumerate(st.session_state.treasures)),
-        key=lambda x: (x[1]["remaining"], x[1]["name"])
-    )
+    # Seskupíme všechno podle jména pro přehlednost
+    grouped_all = {}
+    for i, t in enumerate(st.session_state.treasures):
+        name = t["name"]
+        if name not in grouped_all:
+            grouped_all[name] = {"remaining": t["remaining"], "indices": []}
+        grouped_all[name]["indices"].append(i)
 
-    for i, t in sorted_treasures:
+    # Seřadíme abecedně
+    for name in sorted(grouped_all.keys()):
+        info = grouped_all[name]
         col1, col2, col3, col4, col5 = st.columns([4,2,1,1,1])
 
-        col1.write(t["name"])
-        col2.write(t["remaining"])
+        col1.write(f"**{name}** ({len(info['indices'])} varianty)")
+        col2.write(info["remaining"])
 
-        if col3.button("ℹ️", key=f"info_{i}"):
-            st.session_state.open_detail = i if st.session_state.open_detail != i else None
+        if col3.button("ℹ️", key=f"list_info_{name}"):
+            st.session_state.open_detail = name if st.session_state.open_detail != name else None
 
-        if col4.button("✏️", key=f"edit_{i}"):
-            st.session_state.edit_index = i
+        if col4.button("✏️", key=f"list_edit_{name}"):
+            # Editace vždy první varianty (pro jednoduchost)
+            st.session_state.edit_index = info["indices"][0]
             st.rerun()
 
-        if col5.button("❌", key=f"del_{i}"):
-            st.session_state.confirm_delete = i
+        if col5.button("❌", key=f"list_del_{name}"):
+            st.session_state.confirm_delete = name
 
-        if st.session_state.open_detail == i:
-            show_detail(t)
+        if st.session_state.open_detail == name:
+            for idx in info["indices"]:
+                show_detail(st.session_state.treasures[idx])
+                st.divider()
 
-        if st.session_state.confirm_delete == i:
-            st.warning(f"Opravdu smazat '{t['name']}'?")
+        if st.session_state.confirm_delete == name:
+            st.warning(f"Smazat VŠECHNY varianty '{name}'?")
             c1, c2 = st.columns(2)
 
-            if c1.button("Ano", key=f"del_yes_{i}"):
-                st.session_state.treasures.pop(i)
+            if c1.button("Ano", key=f"del_yes_{name}"):
+                # Necháme jen ty, co se nejmenují stejně
+                st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
                 st.session_state.confirm_delete = None
                 save()
                 st.rerun()
 
-            if c2.button("Ne", key=f"del_no_{i}"):
+            if c2.button("Ne", key=f"del_no_{name}"):
                 st.session_state.confirm_delete = None
 
 # =====================================================
