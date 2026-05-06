@@ -1,6 +1,21 @@
 from supabase import create_client
 import streamlit as st
 
+# --- JEDNODUCHÉ PŘIHLÁŠENÍ ---
+if "username" not in st.session_state:
+    st.session_state["username"] = None
+
+if st.session_state["username"] is None:
+    st.title("Vítejte v Geocaching aplikaci")
+    user = st.text_input("Zadej svou přezdívku (bez mezer):").lower().strip()
+    if st.button("Vstoupit"):
+        if user:
+            st.session_state["username"] = user
+            st.rerun()
+        else:
+            st.error("Musíš zadat jméno!")
+    st.stop() # Tady se kód zastaví a zbytek aplikace se nespustí, dokud se nepřihlásíš
+
 SUPABASE_URL = "https://ycwkedvzyhsofbuhludk.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inljd2tlZHZ6eWhzb2ZidWhsdWRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NzUxNTMsImV4cCI6MjA5MDM1MTE1M30.ai6oiGESIWk4dxIG_tFb8FOuTMEhNeaymE7eWLpTsnk"
 
@@ -15,7 +30,8 @@ ATTRIBUTES = ["👶děti👶","🐶psi🐶","🛠️speciální nástroj🛠️"
 # ===== LOAD =====
 def load_data():
     try:
-        res = supabase.table("treasures").select("*").execute()
+       # Načte jen poklady, které patří přihlášenému uživateli
+        res = supabase.table("treasures").select("*").eq("user_id", st.session_state["username"]).execute()
         data = res.data or []
 
         clean_data = []
@@ -72,9 +88,14 @@ for key, default in {
 # ===== SAVE =====
 def save():
     try:
-        supabase.table("treasures").delete().neq("id", 0).execute()
+        # Smaže jen tvoje poklady, ne cizí!
+        supabase.table("treasures").delete().eq("user_id", st.session_state["username"]).execute()
+        
         for t in st.session_state.treasures:
+            # Každému pokladu přidáme tvoje jméno před uložením
+            t["user_id"] = st.session_state["username"]
             supabase.table("treasures").insert(t).execute()
+        st.toast("Uloženo do databáze!", icon="💾")
     except Exception as e:
         st.error(f"Chyba při ukládání: {e}")
 
