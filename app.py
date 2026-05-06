@@ -198,7 +198,7 @@ if st.button("Zobrazit / skrýt seznam pokladů"):
 if st.session_state.show_list:
     st.header("Seznam pokladů")
 
-    # Seskupíme všechno podle jména pro přehlednost
+    # Seskupíme všechno podle jména
     grouped_all = {}
     for i, t in enumerate(st.session_state.treasures):
         name = t["name"]
@@ -206,56 +206,56 @@ if st.session_state.show_list:
             grouped_all[name] = {"remaining": t["remaining"], "indices": []}
         grouped_all[name]["indices"].append(i)
 
-    # Seřadíme abecedně podle jména skupiny
+    # Seřadíme abecedně
     for name in sorted(grouped_all.keys()):
         info = grouped_all[name]
         
-        # HLAVIČKA SKUPINY (Název a celkový počet)
+        # HLAVIČKA SKUPINY - Menší písmo a kompaktnější vzhled
         with st.container():
             col1, col2, col3, col4 = st.columns([4, 2, 1, 1])
-            col1.write(f"### {name}")
-            col2.write(f"Zbývá: **{info['remaining']}**")
+            col1.write(f"**{name}**")  # Jen tučné písmo místo velkého nadpisu
+            col2.write(f"Zbývá: {info['remaining']}")
             
-            # Tlačítko pro zobrazení/skrytí variant této skupiny
             if col3.button("👁️", key=f"toggle_{name}"):
                 st.session_state.open_detail = name if st.session_state.open_detail != name else None
             
-            # Smazání celé skupiny (všech variant naráz)
             if col4.button("❌", key=f"del_group_{name}"):
                 st.session_state.confirm_delete = name
 
-            # --- ROZBALENÉ VARIANTY ---
+            # --- ROZBALENÉ VARIANTY (DETAILY) ---
             if st.session_state.open_detail == name:
-                st.markdown("---")
+                st.info(f"Varianty pro: {name}")
                 for variant_idx in info["indices"]:
                     t_var = st.session_state.treasures[variant_idx]
-                    v_col1, v_col2, v_col3 = st.columns([5, 1, 1])
                     
-                    # Stručný popis varianty
-                    v_col1.caption(f"Typy: {', '.join(t_var['types'])} | T{t_var['terrain_min']}-{t_var['terrain_max']}")
+                    # Výpis všech detailů varianty
+                    st.markdown(f"""
+                    **Typy:** {", ".join(t_var['types']) if t_var['types'] else "Všechny"} | **Velikosti:** {", ".join(t_var['sizes']) if t_var['sizes'] else "Všechny"}
+                    **T:** {t_var['terrain_min']}–{t_var['terrain_max']} | **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']} | **FP:** {t_var['fav_min']}+
+                    **Atributy:** {", ".join(t_var['attrs']) if t_var['attrs'] else "Žádné"}
+                    """)
                     
-                    # Tlačítko pro editaci konkrétní varianty
-                    if v_col2.button("✏️", key=f"edit_var_{variant_idx}"):
+                    v_col1, v_col2, v_sep = st.columns([1, 1, 4])
+                    if v_col1.button("✏️", key=f"edit_var_{variant_idx}", help="Upravit tuto variantu"):
                         st.session_state.edit_index = variant_idx
                         st.rerun()
                     
-                    # Tlačítko pro smazání jen této jedné varianty
-                    if v_col3.button("🗑️", key=f"del_var_{variant_idx}"):
+                    if v_col2.button("🗑️", key=f"del_var_{variant_idx}", help="Smazat jen tuto variantu"):
                         st.session_state.treasures.pop(variant_idx)
                         save()
                         st.rerun()
-                st.markdown("---")
+                    st.divider()
 
             # Potvrzení smazání celé skupiny
             if st.session_state.confirm_delete == name:
-                st.warning(f"Smazat celou skupinu '{name}'?")
+                st.error(f"Smazat celou skupinu '{name}'?")
                 c1, c2 = st.columns(2)
-                if c1.button("Ano, vše", key=f"del_all_{name}"):
+                if c1.button("Ano, smazat vše", key=f"del_all_{name}"):
                     st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
                     st.session_state.confirm_delete = None
                     save()
                     st.rerun()
-                if c2.button("Ne", key=f"del_no_{name}"):
+                if c2.button("Zrušit", key=f"del_no_{name}"):
                     st.session_state.confirm_delete = None
 
 # =====================================================
