@@ -6,15 +6,16 @@ if "username" not in st.session_state:
     st.session_state["username"] = None
 
 if st.session_state["username"] is None:
-    st.title("Vítejte v Geocaching aplikaci")
-    user = st.text_input("Zadej svou přezdívku (bez mezer):").lower().strip()
+    st.title("Geocaching – Přihlášení")
+    # Použijeme text_input, ale uložíme ho do session_state
+    user_input = st.text_input("Zadej svou přezdívku (např. maty):").lower().strip()
     if st.button("Vstoupit"):
-        if user:
-            st.session_state["username"] = user
+        if user_input:
+            st.session_state["username"] = user_input
             st.rerun()
         else:
-            st.error("Musíš zadat jméno!")
-    st.stop() # Tady se kód zastaví a zbytek aplikace se nespustí, dokud se nepřihlásíš
+            st.error("Jméno nesmí být prázdné!")
+    st.stop() # Zastaví zbytek aplikace, dokud není username
 
 SUPABASE_URL = "https://ycwkedvzyhsofbuhludk.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inljd2tlZHZ6eWhzb2ZidWhsdWRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NzUxNTMsImV4cCI6MjA5MDM1MTE1M30.ai6oiGESIWk4dxIG_tFb8FOuTMEhNeaymE7eWLpTsnk"
