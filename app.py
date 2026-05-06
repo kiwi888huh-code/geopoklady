@@ -206,43 +206,57 @@ if st.session_state.show_list:
             grouped_all[name] = {"remaining": t["remaining"], "indices": []}
         grouped_all[name]["indices"].append(i)
 
-    # Seřadíme abecedně
+    # Seřadíme abecedně podle jména skupiny
     for name in sorted(grouped_all.keys()):
         info = grouped_all[name]
-        col1, col2, col3, col4, col5 = st.columns([4,2,1,1,1])
+        
+        # HLAVIČKA SKUPINY (Název a celkový počet)
+        with st.container():
+            col1, col2, col3, col4 = st.columns([4, 2, 1, 1])
+            col1.write(f"### {name}")
+            col2.write(f"Zbývá: **{info['remaining']}**")
+            
+            # Tlačítko pro zobrazení/skrytí variant této skupiny
+            if col3.button("👁️", key=f"toggle_{name}"):
+                st.session_state.open_detail = name if st.session_state.open_detail != name else None
+            
+            # Smazání celé skupiny (všech variant naráz)
+            if col4.button("❌", key=f"del_group_{name}"):
+                st.session_state.confirm_delete = name
 
-        col1.write(f"**{name}** ({len(info['indices'])} varianty)")
-        col2.write(info["remaining"])
+            # --- ROZBALENÉ VARIANTY ---
+            if st.session_state.open_detail == name:
+                st.markdown("---")
+                for variant_idx in info["indices"]:
+                    t_var = st.session_state.treasures[variant_idx]
+                    v_col1, v_col2, v_col3 = st.columns([5, 1, 1])
+                    
+                    # Stručný popis varianty
+                    v_col1.caption(f"Typy: {', '.join(t_var['types'])} | T{t_var['terrain_min']}-{t_var['terrain_max']}")
+                    
+                    # Tlačítko pro editaci konkrétní varianty
+                    if v_col2.button("✏️", key=f"edit_var_{variant_idx}"):
+                        st.session_state.edit_index = variant_idx
+                        st.rerun()
+                    
+                    # Tlačítko pro smazání jen této jedné varianty
+                    if v_col3.button("🗑️", key=f"del_var_{variant_idx}"):
+                        st.session_state.treasures.pop(variant_idx)
+                        save()
+                        st.rerun()
+                st.markdown("---")
 
-        if col3.button("ℹ️", key=f"list_info_{name}"):
-            st.session_state.open_detail = name if st.session_state.open_detail != name else None
-
-        if col4.button("✏️", key=f"list_edit_{name}"):
-            # Editace vždy první varianty (pro jednoduchost)
-            st.session_state.edit_index = info["indices"][0]
-            st.rerun()
-
-        if col5.button("❌", key=f"list_del_{name}"):
-            st.session_state.confirm_delete = name
-
-        if st.session_state.open_detail == name:
-            for idx in info["indices"]:
-                show_detail(st.session_state.treasures[idx])
-                st.divider()
-
-        if st.session_state.confirm_delete == name:
-            st.warning(f"Smazat VŠECHNY varianty '{name}'?")
-            c1, c2 = st.columns(2)
-
-            if c1.button("Ano", key=f"del_yes_{name}"):
-                # Necháme jen ty, co se nejmenují stejně
-                st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
-                st.session_state.confirm_delete = None
-                save()
-                st.rerun()
-
-            if c2.button("Ne", key=f"del_no_{name}"):
-                st.session_state.confirm_delete = None
+            # Potvrzení smazání celé skupiny
+            if st.session_state.confirm_delete == name:
+                st.warning(f"Smazat celou skupinu '{name}'?")
+                c1, c2 = st.columns(2)
+                if c1.button("Ano, vše", key=f"del_all_{name}"):
+                    st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
+                    st.session_state.confirm_delete = None
+                    save()
+                    st.rerun()
+                if c2.button("Ne", key=f"del_no_{name}"):
+                    st.session_state.confirm_delete = None
 
 # =====================================================
 # 🔥 3. FORM DOLE
