@@ -6,9 +6,9 @@ if "username" not in st.session_state:
     st.session_state["username"] = None
 
 if st.session_state["username"] is None:
-    st.title("Geocaching – Přihlášení")
+    st.title("Geocaching filtr – Přihlášení")
     # Použijeme text_input, ale uložíme ho do session_state
-    user_input = st.text_input("Zadej svou přezdívku (např. maty):").lower().strip()
+    user_input = st.text_input("Zadej svou přezdívku (nemusí být oficiální):").lower().strip()
     if st.button("Vstoupit"):
         if user_input:
             st.session_state["username"] = user_input
