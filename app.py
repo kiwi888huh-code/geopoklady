@@ -141,9 +141,9 @@ if btn_col2.button("Reset", use_container_width=True):
 if st.session_state.results:
     st.subheader("Vhodné poklady:")
     for i, t in st.session_state.results:
-        r_col1, r_col2, r_col3, r_col4 = st.columns([4,2,1,1])
+        r_col1, r_col2, r_col3, r_col4 = st.columns([4, 2, 1, 1])
         
-        # Zobrazení názvu a počtu (tady 'i' existuje díky cyklu)
+        # Zobrazení názvu a aktuálního počtu
         r_col1.write(t["name"])
         r_col2.write(f"Zbývá: {t['remaining']}")
         
@@ -157,21 +157,22 @@ if st.session_state.results:
         if st.session_state.open_detail_result == i:
             st.info(f"T {t['terrain_min']}-{t['terrain_max']} | D {t['difficulty_min']}-{t['difficulty_max']} | FP {t['fav_min']}+")
         
-        # LOGIKA POTVRZENÍ (musí být uvnitř cyklu for!)
+        # --- LOGIKA POTVRZENÍ (Musí být odsazená uvnitř cyklu for!) ---
         if st.session_state.confirm_use == i:
             st.warning(f"Opravdu použít {t['name']}?")
             conf_col1, conf_col2 = st.columns(2)
             
             if conf_col1.button("Potvrdit ✅", key=f"y_{i}", use_container_width=True):
                 target_name = t['name']
-                # Synchronizovaný odpočet u všech variant se stejným jménem
+                # Synchronizovaný odpočet: najde všechny varianty se stejným jménem
                 for idx, item in enumerate(st.session_state.treasures):
-                    if item["name"] == target_name and item["remaining"] > 0:
-                        st.session_state.treasures[idx]["remaining"] -= 1
+                    if item["name"] == target_name:
+                        # Snížíme počet, ale nepůjdeme pod nulu
+                        st.session_state.treasures[idx]["remaining"] = max(0, item["remaining"] - 1)
                 
                 save()
                 st.session_state.confirm_use = None
-                st.session_state.results = [] # Vyčistíme výsledky po použití
+                st.session_state.results = [] # Vyčistíme výsledky, aby zmizelo potvrzovací okno
                 st.rerun()
                 
             if conf_col2.button("Zrušit ❌", key=f"n_{i}", use_container_width=True):
