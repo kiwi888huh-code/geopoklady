@@ -269,7 +269,6 @@ if st.session_state.show_list:
         if is_expanded:
             for original_idx, t_var in variants:
                 with st.container():
-                    st.markdown(f"**Varianta (zbývá {t_var['remaining']}):**")
                     
                     # Logika pro selektivní zobrazení informací
                     info_lines = []
