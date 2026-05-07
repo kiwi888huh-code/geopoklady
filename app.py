@@ -36,40 +36,55 @@ ATTRIBUTES = ["👶děti👶","🐶psi🐶","🛠️speciální nástroj🛠️"
 # ===== LOAD =====
 def load_data():
     try:
-       # Načte jen poklady, které patří přihlášenému uživateli
+        # 1. Zkusíme načíst data pro konkrétního uživatele
         res = supabase.table("treasures").select("*").eq("user_id", st.session_state["username"]).execute()
         data = res.data or []
 
-        clean_data = []
+        # 2. Pokud uživatel nemá ŽÁDNÉ poklady, vytvoříme mu balíček z těch, co jsou pod NULL
+        if not data:
+            # Načteme šablony (kde user_id je NULL)
+            res_templates = supabase.table("treasures").select("*").is_("user_id", "null").execute()
+            templates = res_templates.data or []
+            
+            if templates:
+                for t in templates:
+                    # Vytvoříme kopii, ale bez ID (aby Supabase vytvořil nový řádek)
+                    new_treasure = t.copy()
+                    if "id" in new_treasure: del new_treasure["id"] # Smažeme původní ID řádku
+                    
+                    # Přiřadíme jméno nového uživatele
+                    new_treasure["user_id"] = st.session_state["username"]
+                    
+                    # Uložíme do databáze jako nový řádek pro tohoto uživatele
+                    supabase.table("treasures").insert(new_treasure).execute()
+                
+                # Po nakopírování načteme data znovu, tentokrát už tam budou
+                res = supabase.table("treasures").select("*").eq("user_id", st.session_state["username"]).execute()
+                data = res.data or []
 
+        # 3. Vyčištění a formátování dat (zůstává stejné jako dřív)
+        clean_data = []
         for t in data:
             try:
                 clean_data.append({
                     "name": str(t.get("name", "")),
-
                     "types": t.get("types") or [],
                     "sizes": t.get("sizes") or [],
                     "attrs": t.get("attrs") or [],
-
                     "terrain_min": float(t.get("terrain_min") or 0.5),
                     "terrain_max": float(t.get("terrain_max") or 5.0),
-
                     "difficulty_min": float(t.get("difficulty_min") or 0.5),
                     "difficulty_max": float(t.get("difficulty_max") or 5.0),
-
                     "fav_min": int(t.get("fav_min") or 0),
-                    "remaining": max(0, int(t.get("remaining") or 0))  # 🔥 nikdy záporné
+                    "remaining": max(0, int(t.get("remaining") or 0))
                 })
             except:
-                # když je jeden poklad rozbitý → přeskoč ho
                 continue
-
         return clean_data
 
     except Exception as e:
         st.error(f"Chyba při načítání databáze: {e}")
         return []
-
 
 # ===== INIT SESSION =====
 if "treasures" not in st.session_state:
