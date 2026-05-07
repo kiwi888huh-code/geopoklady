@@ -161,7 +161,6 @@ if st.session_state.results:
                 st.rerun()
 
 # --- 2. SEZNAM POKLADŮ ---
-# --- 2. SEZNAM POKLADŮ ---
 st.divider()
 if "expanded_info" not in st.session_state:
     st.session_state.expanded_info = set()
@@ -172,77 +171,92 @@ if st.button("Zobrazit / skrýt seznam pokladů"):
 if st.session_state.show_list:
     st.header("Seznam pokladů")
     
-    # Seřazení: od nejméně zbývajících po nejvíce
-    sorted_treasures = sorted(
-        enumerate(st.session_state.treasures), 
-        key=lambda x: x[1]["remaining"]
-    )
+    # 1. Seskupíme poklady podle jména
+    grouped = {}
+    for i, t in enumerate(st.session_state.treasures):
+        name = t["name"]
+        if name not in grouped:
+            grouped[name] = []
+        grouped[name].append((i, t)) # ukládáme původní index a data
 
-    if not sorted_treasures:
+    # 2. Vytvoříme seznam skupin pro řazení (podle nejmenšího 'remaining' v dané skupině)
+    group_list = []
+    for name, variants in grouped.items():
+        min_rem = min(v[1]["remaining"] for v in variants)
+        group_list.append({"name": name, "variants": variants, "min_rem": min_rem})
+
+    # 3. Seřadíme skupiny od nejméně zbývajících
+    group_list = sorted(group_list, key=lambda x: x["min_rem"])
+
+    if not group_list:
         st.write("Seznam je prázdný.")
 
-    for i, t in sorted_treasures:
-        # Unikátní identifikátor pro rozbalení (index)
-        is_expanded = i in st.session_state.expanded_info
+    for group in group_list:
+        name = group["name"]
+        variants = group["variants"]
+        is_expanded = name in st.session_state.expanded_info
         eye_icon = "🕶️" if is_expanded else "👁️"
         
-        # HLAVNÍ ŘÁDEK POKLADU
+        # Výpočet celkového počtu kusů pro hlavní řádek
+        total_remaining = sum(v[1]["remaining"] for v in variants)
+
+        # HLAVNÍ ŘÁDEK SKUPINY (Jeden řádek pro jeden název)
         col_name, col_eye, col_edit, col_del = st.columns([5, 1, 1, 1])
         
-        col_name.write(f"**{t['name']}** ({t['remaining']})")
+        col_name.write(f"**{name}** ({total_remaining})")
         
-        # Tlačítko pro zobrazení INFO (přepíná ikonu)
-        if col_eye.button(eye_icon, key=f"eye_{i}"):
+        # Oko přepíná zobrazení všech variant pod názvem
+        if col_eye.button(eye_icon, key=f"eye_group_{name}"):
             if is_expanded:
-                st.session_state.expanded_info.remove(i)
+                st.session_state.expanded_info.remove(name)
             else:
-                st.session_state.expanded_info.add(i)
+                st.session_state.expanded_info.add(name)
             st.rerun()
 
-        # Tlačítko pro celkovou editaci (přenese do formuláře dole)
-        if col_edit.button("🖌️", key=f"edit_btn_{i}"):
-            st.session_state.edit_index = i
-            # Odrolujeme k formuláři (volitelné, Streamlit rerunnne na začátek)
+        # Editace první varianty (rychlá volba)
+        if col_edit.button("🖌️", key=f"edit_group_{name}"):
+            st.session_state.edit_index = variants[0][0]
             st.rerun()
 
-        # Tlačítko pro smazání (s potvrzením)
-        if col_del.button("❌", key=f"del_btn_{i}"):
-            st.session_state.confirm_delete = i
+        # Smazání CELÉ skupiny (všech duplikátů)
+        if col_del.button("❌", key=f"del_group_{name}"):
+            st.session_state.confirm_delete = name
 
-        # POTVRZENÍ SMAZÁNÍ
-        if st.session_state.confirm_delete == i:
-            st.error(f"Opravdu smazat poklad '{t['name']}'?")
+        # POTVRZENÍ SMAZÁNÍ CELÉ SKUPINY
+        if st.session_state.confirm_delete == name:
+            st.error(f"Opravdu smazat VŠECHNY varianty pokladu '{name}'?")
             c1, c2 = st.columns(2)
-            if c1.button("Ano, smazat", key=f"confirm_yes_{i}"):
-                st.session_state.treasures.pop(i)
+            if c1.button("Ano, smazat vše", key=f"conf_yes_all_{name}"):
+                st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
                 save()
                 st.session_state.confirm_delete = None
                 st.rerun()
-            if c2.button("Zrušit", key=f"confirm_no_{i}"):
+            if c2.button("Zrušit", key=f"conf_no_all_{name}"):
                 st.session_state.confirm_delete = None
                 st.rerun()
 
-        # DETAIL POKLADU (Zobrazí se po kliknutí na oko)
+        # ROZBALENÉ VARIANTY (DUPLIKÁTY)
         if is_expanded:
-            with st.container():
-                st.markdown(f"""
-                > **Podmínky:**  
-                > 🌍 **Typy:** {", ".join(t['types']) if t['types'] else "Všechny"} | 📦 **Velikosti:** {", ".join(t['sizes']) if t['sizes'] else "Všechny"}  
-                > 📈 **T:** {t['terrain_min']}–{t['terrain_max']} | **D:** {t['difficulty_min']}–{t['difficulty_max']} | ❤️ **FP:** {t['fav_min']}+  
-                > 🏷️ **Atributy:** {", ".join(t['attrs']) if t['attrs'] else "Žádné"}
-                """)
-                
-                # Pokud bys měl v budoucnu logiku pro duplikáty (stejná jména, jiné parametry),
-                # tato tlačítka v detailu umožní řešit konkrétní instanci:
-                d_col1, d_col2, _ = st.columns([1, 1, 4])
-                if d_col1.button("✏️", key=f"inner_edit_{i}", help="Upravit tuto verzi"):
-                    st.session_state.edit_index = i
-                    st.rerun()
-                if d_col2.button("🗑️", key=f"inner_del_{i}", help="Smazat pouze tuto verzi"):
-                    st.session_state.treasures.pop(i)
-                    save()
-                    st.rerun()
-            st.divider()
+            for original_idx, t_var in variants:
+                with st.container():
+                    st.markdown(f"**Varianta (zbývá {t_var['remaining']}):**")
+                    st.markdown(f"""
+                    > 🌍 **Typy:** {", ".join(t_var['types']) if t_var['types'] else "Všechny"} | 📦 **Velikosti:** {", ".join(t_var['sizes']) if t_var['sizes'] else "Všechny"}  
+                    > 📈 **T:** {t_var['terrain_min']}–{t_var['terrain_max']} | **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']} | ❤️ **FP:** {t_var['fav_min']}+  
+                    > 🏷️ **Atributy:** {", ".join(t_var['attrs']) if t_var['attrs'] else "Žádné"}
+                    """)
+                    
+                    v_col1, v_col2, _ = st.columns([1, 1, 4])
+                    # Editace konkrétní varianty
+                    if v_col1.button("✏️", key=f"inner_edit_{original_idx}"):
+                        st.session_state.edit_index = original_idx
+                        st.rerun()
+                    # Smazání konkrétní varianty
+                    if v_col2.button("🗑️", key=f"inner_del_{original_idx}"):
+                        st.session_state.treasures.pop(original_idx)
+                        save()
+                        st.rerun()
+                st.divider()
 
 # --- 3. FORMULÁŘ PŘIDAT / UPRAVIT ---
 st.divider()
