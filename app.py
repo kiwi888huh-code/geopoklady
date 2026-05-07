@@ -1,13 +1,39 @@
 from supabase import create_client
 import streamlit as st
 
+import streamlit.components.v1 as components
+
+def set_local_storage(key, value):
+    components.html(f"<script>localStorage.setItem('{key}', '{value}');</script>", height=0)
+
+def clear_local_storage(key):
+    components.html(f"<script>localStorage.removeItem('{key}');</script>", height=0)
+
 # --- CHYTRÉ PŘIHLÁŠENÍ ---
+# --- CHYTRÉ PŘIHLÁŠENÍ S PAMĚTÍ ---
 if "username" not in st.session_state:
     st.session_state["username"] = None
 
+# JavaScript trik pro načtení jména z LocalStorage do Streamlitu
+# (Musíme to udělat takhle, protože Streamlit neběží přímo v prohlížeči)
+js_code = """
+<script>
+    const user = localStorage.getItem('gc_user');
+    if (user) {
+        window.parent.postMessage({type: 'set_user', username: user}, '*');
+    }
+</script>
+"""
+components.html(js_code, height=0)
+
+# Posluchač pro zprávu z JavaScriptu (aby se jméno dostalo do Pythonu)
+# POZOR: Tato část je trochu limitovaná architekturou Streamlitu. 
+# Nejjednodušší spolehlivá cesta bez extra knihoven je tato:
+
 url_params = st.query_params
-if "user" in url_params and st.session_state["username"] is None:
+if "user" in url_params:
     st.session_state["username"] = url_params["user"].lower().strip()
+    set_local_storage('gc_user', st.session_state["username"])
 
 if st.session_state["username"] is None:
     st.title("Geocaching filtr – Přihlášení")
@@ -15,6 +41,7 @@ if st.session_state["username"] is None:
     if st.button("Vstoupit"):
         if user_input:
             st.session_state["username"] = user_input
+            set_local_storage('gc_user', user_input) # ULOŽENÍ DO PROHLÍŽEČE
             st.rerun()
         else:
             st.error("Jméno nesmí být prázdné!")
@@ -278,6 +305,13 @@ if col_reset_t.button("Resetovat pole", use_container_width=True, key="btn_reset
     st.rerun()
 
 st.divider()
+
+with st.sidebar:
+    st.write(f"Přihlášen jako: **{st.session_state['username']}**")
+    if st.button("Odhlásit se"):
+        clear_local_storage('gc_user') # VYMAZÁNÍ Z PROHLÍŽEČE
+        st.session_state["username"] = None
+        st.rerun()
 # --- TLAČÍTKO PRO TOTÁLNÍ RESET ---
 if st.button("Resetovat do základního balíčku pokladů (SMAŽE TVÉ ÚPRAVY!)", use_container_width=True):
     reset_to_default()
