@@ -9,16 +9,17 @@ if "username" not in st.session_state:
     st.session_state["username"] = None
 
 # --- LOGIKA PŘIHLÁŠENÍ S PAMĚTÍ ---
+url_params = st.query_params
+if "user" in url_params:
+    user_val = url_params["user"].lower().strip()
+    if st.session_state["username"] != user_val:
+        st.session_state["username"] = user_val
+        localS.setItem("gc_user", user_val)
+
 if st.session_state["username"] is None:
     stored_user = localS.getItem("gc_user")
     if stored_user:
         st.session_state["username"] = stored_user
-
-url_params = st.query_params
-if "user" in url_params and st.session_state["username"] is None:
-    user_val = url_params["user"].lower().strip()
-    st.session_state["username"] = user_val
-    localS.setItem("gc_user", user_val)
 
 if st.session_state["username"] is None:
     st.title("Geocaching filtr – Přihlášení")
@@ -27,6 +28,7 @@ if st.session_state["username"] is None:
         if user_input:
             st.session_state["username"] = user_input
             localS.setItem("gc_user", user_input)
+            st.query_params["user"] = user_input
             st.rerun()
         else:
             st.error("Jméno nesmí být prázdné!")
@@ -99,12 +101,18 @@ for key, val in {"show_list": False, "open_detail": None, "open_detail_result": 
 with st.sidebar:
     st.write(f"Uživatel: **{st.session_state['username']}**")
     if st.button("Odhlásit se"):
-        # Tady byla ta chyba - správně je deleteItem
-        localS.deleteItem("gc_user") 
+        # 1. Smazání z LocalStorage
+        localS.deleteItem("gc_user")
+        
+        # 2. Reset session_state
         st.session_state["username"] = None
-        # Vymažeme i poklady ze session, aby se při novém přihlášení načetly ty správné
         if "treasures" in st.session_state:
             del st.session_state["treasures"]
+            
+        # 3. Vyčištění URL parametrů (aby tam nezůstal ?user=...)
+        st.query_params.clear()
+        
+        # 4. Tvrdý restart
         st.rerun()
 
 # --- 1. ZADEJ KEŠ ---
