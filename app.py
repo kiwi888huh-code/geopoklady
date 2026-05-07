@@ -95,13 +95,16 @@ if "reset_form_key" not in st.session_state: st.session_state.reset_form_key = 1
 for key, val in {"show_list": False, "open_detail": None, "open_detail_result": None, 
                  "edit_index": None, "results": [], "confirm_use": None, "confirm_delete": None}.items():
     if key not in st.session_state: st.session_state[key] = val
-
 # --- SIDEBAR ---
 with st.sidebar:
     st.write(f"Uživatel: **{st.session_state['username']}**")
     if st.button("Odhlásit se"):
-        localS.removeItem("gc_user")
+        # Tady byla ta chyba - správně je deleteItem
+        localS.deleteItem("gc_user") 
         st.session_state["username"] = None
+        # Vymažeme i poklady ze session, aby se při novém přihlášení načetly ty správné
+        if "treasures" in st.session_state:
+            del st.session_state["treasures"]
         st.rerun()
 
 # --- 1. ZADEJ KEŠ ---
