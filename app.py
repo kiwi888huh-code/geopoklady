@@ -258,7 +258,6 @@ if st.session_state.show_list:
         if is_expanded:
             for original_idx, t_var in variants:
                 with st.container():
-                    st.markdown(f"**Varianta (zbývá {t_var['remaining']}):**")
                     st.markdown(f"""
                     > 🌍 **Typy:** {", ".join(t_var['types']) if t_var['types'] else "Všechny"} | 📦 **Velikosti:** {", ".join(t_var['sizes']) if t_var['sizes'] else "Všechny"}  
                     > 📈 **T:** {t_var['terrain_min']}–{t_var['terrain_max']} | **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']} | ❤️ **FP:** {t_var['fav_min']}+  
