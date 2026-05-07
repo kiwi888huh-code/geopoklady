@@ -275,7 +275,7 @@ if st.session_state.show_list:
                     
                     # 1. Typy (Zobrazíme jen pokud to nejsou všechny)
                     if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
-                        info_lines.append(f"🌍 **Typy:** {', '.join(t_var['types'])}")
+                        info_lines.append(f"🖥️ **Typy:** {', '.join(t_var['types'])}")
                     
                     # 2. Velikosti (Zobrazíme jen pokud to nejsou všechny)
                     if t_var['sizes'] and len(t_var['sizes']) < len(SIZES):
@@ -286,11 +286,11 @@ if st.session_state.show_list:
                     if t_var['terrain_min'] > 0.5 or t_var['terrain_max'] < 5.0:
                         info_lines.append(f"📈 **T:** {t_var['terrain_min']}–{t_var['terrain_max']}")
                     if t_var['difficulty_min'] > 0.5 or t_var['difficulty_max'] < 5.0:
-                        info_lines.append(f"📊 **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']}")
+                        info_lines.append(f"💪 **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']}")
                     
                     # 4. Srdíčka (Zobrazíme jen pokud je vyžadováno víc než 0)
                     if t_var['fav_min'] > 0:
-                        info_lines.append(f"❤️ **FP:** {t_var['fav_min']}+")
+                        info_lines.append(f"💗 **FP:** {t_var['fav_min']}+")
                     
                     # 5. Atributy (Zobrazíme jen pokud nějaké jsou)
                     if t_var['attrs']:
