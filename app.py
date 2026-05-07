@@ -88,6 +88,10 @@ def save():
 if "treasures" not in st.session_state:
     st.session_state.treasures = load_data()
 
+# Pomocné stavy pro resetování formulářů
+if "reset_cache_key" not in st.session_state: st.session_state.reset_cache_key = 0
+if "reset_form_key" not in st.session_state: st.session_state.reset_form_key = 1000
+
 for key, val in {"show_list": False, "open_detail": None, "open_detail_result": None, 
                  "edit_index": None, "results": [], "confirm_use": None, "confirm_delete": None}.items():
     if key not in st.session_state: st.session_state[key] = val
@@ -104,15 +108,18 @@ with st.sidebar:
 st.title("Geocaching – výběr pokladů")
 st.header("Zadej keš")
 
+# Používáme suffix s reset_cache_key pro vynucení resetu prvků
+rk = st.session_state.reset_cache_key
 c_col1, c_col2 = st.columns(2)
-cache_type = c_col1.selectbox("Typ keše", CACHE_TYPES)
-cache_size = c_col2.selectbox("Velikost", SIZES)
-cache_difficulty = st.slider("Obtížnost", 0.5, 5.0, 0.5, 0.5)
-cache_terrain = st.slider("Terén", 0.5, 5.0, 0.5, 0.5)
-cache_fav = st.number_input("Srdíčka", 0, 10000, 0)
-cache_attrs = st.multiselect("Atributy keše", ATTRIBUTES)
+cache_type = c_col1.selectbox("Typ keše", CACHE_TYPES, key=f"ct_{rk}")
+cache_size = c_col2.selectbox("Velikost", SIZES, key=f"cs_{rk}")
+cache_difficulty = st.slider("Obtížnost", 0.5, 5.0, 0.5, 0.5, key=f"cd_{rk}")
+cache_terrain = st.slider("Terén", 0.5, 5.0, 0.5, 0.5, key=f"cterr_{rk}")
+cache_fav = st.number_input("Srdíčka", 0, 10000, 0, key=f"cf_{rk}")
+cache_attrs = st.multiselect("Atributy keše", ATTRIBUTES, key=f"ca_{rk}")
 
-if st.button("Vyhodnotit", use_container_width=True):
+btn_col1, btn_col2 = st.columns(2)
+if btn_col1.button("Vyhodnotit", use_container_width=True, type="primary"):
     results = []
     for i, t in enumerate(st.session_state.treasures):
         m = True
@@ -124,6 +131,11 @@ if st.button("Vyhodnotit", use_container_width=True):
         if not set(t["attrs"]).issubset(set(cache_attrs)): m = False
         if m: results.append((i, t))
     st.session_state.results = sorted(results, key=lambda x: x[1]["remaining"])
+
+if btn_col2.button("Reset", use_container_width=True):
+    st.session_state.reset_cache_key += 1
+    st.session_state.results = []
+    st.rerun()
 
 # Výsledky
 if st.session_state.results:
@@ -170,18 +182,20 @@ if st.session_state.show_list:
 st.divider()
 st.header("Přidat / upravit poklad")
 
+# Výchozí hodnoty
 d = {"name": "", "types": [], "terrain_min": 0.5, "terrain_max": 5.0, "difficulty_min": 0.5, "difficulty_max": 5.0, "sizes": [], "fav_min": 0, "attrs": [], "remaining": 0}
 if st.session_state.edit_index is not None:
     d = st.session_state.treasures[st.session_state.edit_index]
 
-f_name = st.text_input("Název", value=d["name"])
-f_types = st.multiselect("Typy keší", CACHE_TYPES, default=d["types"])
-f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"])
-f_diff = st.slider("Obtížnost (min-max)", 0.5, 5.0, (d["difficulty_min"], d["difficulty_max"]), 0.5)
-f_terr = st.slider("Terén (min-max)", 0.5, 5.0, (d["terrain_min"], d["terrain_max"]), 0.5)
-f_fav = st.number_input("Min. srdíčka", 0, 1000, value=d["fav_min"])
-f_attrs = st.multiselect("Atributy", ATTRIBUTES, default=d["attrs"])
-f_rem = st.number_input("Zbývá kusů", 0, 100, value=d["remaining"])
+fk = st.session_state.reset_form_key
+f_name = st.text_input("Název", value=d["name"], key=f"fn_{fk}")
+f_types = st.multiselect("Typy keší", CACHE_TYPES, default=d["types"], key=f"ft_{fk}")
+f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
+f_diff = st.slider("Obtížnost (min-max)", 0.5, 5.0, (d["difficulty_min"], d["difficulty_max"]), 0.5, key=f"fd_{fk}")
+f_terr = st.slider("Terén (min-max)", 0.5, 5.0, (d["terrain_min"], d["terrain_max"]), 0.5, key=f"fterr_{fk}")
+f_fav = st.number_input("Min. srdíčka", 0, 1000, value=d["fav_min"], key=f"ff_{fk}")
+f_attrs = st.multiselect("Atributy", ATTRIBUTES, default=d["attrs"], key=f"fa_{fk}")
+f_rem = st.number_input("Zbývá kusů", 0, 100, value=d["remaining"], key=f"fr_{fk}")
 
 b_col1, b_col2 = st.columns(2)
 if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
@@ -199,6 +213,7 @@ if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
     save()
     st.rerun()
 
-if b_col2.button("Zrušit / Reset", use_container_width=True):
+if b_col2.button("Reset formuláře", use_container_width=True):
     st.session_state.edit_index = None
+    st.session_state.reset_form_key += 1 # Změna klíče "smaže" inputy
     st.rerun()
