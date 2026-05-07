@@ -138,25 +138,15 @@ if btn_col2.button("Reset", use_container_width=True):
     st.rerun()
 
 # Výsledky
-if st.session_state.results:
-    st.subheader("Vhodné poklady:")
-    for i, t in st.session_state.results:
-        r_col1, r_col2, r_col3, r_col4 = st.columns([4,2,1,1])
-        r_col1.write(t["name"])
-        r_col2.write(f"Zbývá: {t['remaining']}")
-        if r_col3.button("ℹ️", key=f"res_i_{i}"):
-            st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
-        if r_col4.button("✅", key=f"use_{i}"):
-            st.session_state.confirm_use = i
-        
-        if st.session_state.open_detail_result == i:
-            st.info(f"T {t['terrain_min']}-{t['terrain_max']} | D {t['difficulty_min']}-{t['difficulty_max']} | FP {t['fav_min']}+")
-        
-        if st.session_state.confirm_use == i:
+if st.session_state.confirm_use == i:
             if st.button(f"Potvrdit použití {t['name']}", key=f"y_{i}"):
-                if st.session_state.treasures[i]["remaining"] > 0:
-                    st.session_state.treasures[i]["remaining"] -= 1
-                    save()
+                target_name = t['name']
+                # Synchronizovaný odpočet u všech variant se stejným jménem
+                for idx, item in enumerate(st.session_state.treasures):
+                    if item["name"] == target_name and item["remaining"] > 0:
+                        st.session_state.treasures[idx]["remaining"] -= 1
+                
+                save()
                 st.session_state.confirm_use = None
                 st.rerun()
 
@@ -198,12 +188,12 @@ if st.session_state.show_list:
         eye_icon = "🕶️" if is_expanded else "👁️"
         
         # Výpočet celkového počtu kusů pro hlavní řádek
-        total_remaining = sum(v[1]["remaining"] for v in variants)
+        current_stock = max(v[1]["remaining"] for v in variants)
 
         # HLAVNÍ ŘÁDEK SKUPINY (Jeden řádek pro jeden název)
         col_name, col_eye, col_edit, col_del = st.columns([5, 1, 1, 1])
         
-        col_name.write(f"**{name}** ({total_remaining})")
+        col_name.write(f"{name} ({current_stock})")
         
         # Oko přepíná zobrazení všech variant pod názvem
         if col_eye.button(eye_icon, key=f"eye_group_{name}"):
