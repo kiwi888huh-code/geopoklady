@@ -275,11 +275,11 @@ if st.session_state.show_list:
                     
                     # 1. Typy (Zobrazíme jen pokud to nejsou všechny)
                     if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
-                        info_lines.append(f"➖ **Typy:** {', '.join(t_var['types'])}")
+                        info_lines.append(f"➖ {', '.join(t_var['types'])}")
                     
                     # 2. Velikosti (Zobrazíme jen pokud to nejsou všechny)
                     if t_var['sizes'] and len(t_var['sizes']) < len(SIZES):
-                        info_lines.append(f"➖ **Velikosti:** {', '.join(t_var['sizes'])}")
+                        info_lines.append(f"➖ {', '.join(t_var['sizes'])}")
                     
                     # 3. Terén a Obtížnost (Zobrazíme vždy, nebo jen pokud nejsou 0.5-5.0?)
                     # Tady dávám zobrazení jen pokud rozsah není "od-do" (0.5 - 5.0)
