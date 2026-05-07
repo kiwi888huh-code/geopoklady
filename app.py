@@ -141,8 +141,8 @@ if col_eval.button("Vyhodnotit", use_container_width=True):
     cache = {"type": cache_type, "terrain": cache_terrain, "difficulty": cache_difficulty, "size": cache_size, "fav": cache_fav, "attrs": cache_attrs}
     results = [(i, t) for i, t in enumerate(st.session_state.treasures) if match(t, cache)]
     st.session_state.results = sorted(results, key=lambda x: (x[1]["remaining"], x[1]["name"]))
-
-if col_reset_c.button("Resetovat pole", use_container_width=True):
+    
+if col_reset_c.button("Resetovat pole", use_container_width=True, key="btn_reset_cache"):
     st.session_state.reset_cache_form += 1
     st.session_state.results = []
     st.rerun()
@@ -271,8 +271,8 @@ if col_save.button("Uložit poklad", use_container_width=True):
         st.session_state.edit_index = None
     save()
     st.rerun()
-
-if col_reset_t.button("Resetovat pole", use_container_width=True):
+    
+if col_reset_t.button("Resetovat pole", use_container_width=True, key="btn_reset_treasure"):
     st.session_state.edit_index = None
     st.session_state.reset_treasure_form += 1
     st.rerun()
