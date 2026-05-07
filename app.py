@@ -1,21 +1,26 @@
 from supabase import create_client
 import streamlit as st
 
-# --- JEDNODUCHÉ PŘIHLÁŠENÍ ---
+# --- CHYTRÉ PŘIHLÁŠENÍ (URL + RUČNÍ) ---
 if "username" not in st.session_state:
     st.session_state["username"] = None
 
+# 1. Pokusíme se vzít jméno z URL (např. ?user=maty)
+url_params = st.query_params
+if "user" in url_params and st.session_state["username"] is None:
+    st.session_state["username"] = url_params["user"].lower().strip()
+
+# 2. Pokud jméno pořád nemáme (v URL nebylo), ukážeme formulář
 if st.session_state["username"] is None:
     st.title("Geocaching filtr – Přihlášení")
-    # Použijeme text_input, ale uložíme ho do session_state
-    user_input = st.text_input("Zadej svou přezdívku (nemusí být oficiální):").lower().strip()
+    user_input = st.text_input("Zadej svou přezdívku:").lower().strip()
     if st.button("Vstoupit"):
         if user_input:
             st.session_state["username"] = user_input
             st.rerun()
         else:
             st.error("Jméno nesmí být prázdné!")
-    st.stop() # Zastaví zbytek aplikace, dokud není username
+    st.stop()
 
 SUPABASE_URL = "https://ycwkedvzyhsofbuhludk.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inljd2tlZHZ6eWhzb2ZidWhsdWRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NzUxNTMsImV4cCI6MjA5MDM1MTE1M30.ai6oiGESIWk4dxIG_tFb8FOuTMEhNeaymE7eWLpTsnk"
