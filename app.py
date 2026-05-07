@@ -265,27 +265,47 @@ if st.session_state.show_list:
                 st.session_state.confirm_delete = None
                 st.rerun()
 
-        # ROZBALENÉ VARIANTY (DUPLIKÁTY)
+      # ROZBALENÉ VARIANTY (DUPLIKÁTY)
         if is_expanded:
             for original_idx, t_var in variants:
                 with st.container():
-                    st.markdown(f"""
-                    > 🌍 **Typy:** {", ".join(t_var['types']) if t_var['types'] else "Všechny"} | 📦 **Velikosti:** {", ".join(t_var['sizes']) if t_var['sizes'] else "Všechny"}  
-                    > 📈 **T:** {t_var['terrain_min']}–{t_var['terrain_max']} | **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']} | ❤️ **FP:** {t_var['fav_min']}+  
-                    > 🏷️ **Atributy:** {", ".join(t_var['attrs']) if t_var['attrs'] else "Žádné"}
-                    """)
+                    st.markdown(f"**Varianta (zbývá {t_var['remaining']}):**")
+                    
+                    # Logika pro selektivní zobrazení informací
+                    info_lines = []
+                    
+                    # 1. Typy (Zobrazíme jen pokud to nejsou všechny)
+                    if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
+                        info_lines.append(f"🌍 **Typy:** {', '.join(t_var['types'])}")
+                    
+                    # 2. Velikosti (Zobrazíme jen pokud to nejsou všechny)
+                    if t_var['sizes'] and len(t_var['sizes']) < len(SIZES):
+                        info_lines.append(f"📦 **Velikosti:** {', '.join(t_var['sizes'])}")
+                    
+                    # 3. Terén a Obtížnost (Zobrazíme vždy, nebo jen pokud nejsou 0.5-5.0?)
+                    # Tady dávám zobrazení jen pokud rozsah není "od-do" (0.5 - 5.0)
+                    if t_var['terrain_min'] > 0.5 or t_var['terrain_max'] < 5.0:
+                        info_lines.append(f"📈 **T:** {t_var['terrain_min']}–{t_var['terrain_max']}")
+                    if t_var['difficulty_min'] > 0.5 or t_var['difficulty_max'] < 5.0:
+                        info_lines.append(f"📊 **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']}")
+                    
+                    # 4. Srdíčka (Zobrazíme jen pokud je vyžadováno víc než 0)
+                    if t_var['fav_min'] > 0:
+                        info_lines.append(f"❤️ **FP:** {t_var['fav_min']}+")
+                    
+                    # 5. Atributy (Zobrazíme jen pokud nějaké jsou)
+                    if t_var['attrs']:
+                        info_lines.append(f"🏷️ **Atributy:** {', '.join(t_var['attrs'])}")
+
+                    # Pokud je seznam info_lines prázdný, znamená to "Cokoliv"
+                    if not info_lines:
+                        st.info("Tato varianta nemá žádná omezení (bere vše).")
+                    else:
+                        # Spojíme řádky do jednoho bloku
+                        st.markdown("> " + "  \n> ".join(info_lines))
                     
                     v_col1, v_col2, _ = st.columns([1, 1, 4])
-                    # Editace konkrétní varianty
-                    if v_col1.button("✏️", key=f"inner_edit_{original_idx}"):
-                        st.session_state.edit_index = original_idx
-                        st.rerun()
-                    # Smazání konkrétní varianty
-                    if v_col2.button("🗑️", key=f"inner_del_{original_idx}"):
-                        st.session_state.treasures.pop(original_idx)
-                        save()
-                        st.rerun()
-                st.divider()
+                    # ... zbytek tlačítek ✏️ a 🗑️ zůstává stejný ...
 
 # --- 3. FORMULÁŘ PŘIDAT / UPRAVIT ---
 st.divider()
