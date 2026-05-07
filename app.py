@@ -308,40 +308,67 @@ if st.session_state.show_list:
 
 # --- 3. FORMULÁŘ PŘIDAT / UPRAVIT ---
 st.divider()
-st.header("Přidat / upravit poklad")
+if st.session_state.edit_index is not None:
+    st.header(f"Upravit poklad: {st.session_state.treasures[st.session_state.edit_index]['name']}")
+else:
+    st.header("Přidat nový poklad")
 
-# Výchozí hodnoty
+# 1. PŘÍPRAVA DAT
 d = {"name": "", "types": [], "terrain_min": 0.5, "terrain_max": 5.0, "difficulty_min": 0.5, "difficulty_max": 5.0, "sizes": [], "fav_min": 0, "attrs": [], "remaining": 0}
 if st.session_state.edit_index is not None:
-    d = st.session_state.treasures[st.session_state.edit_index]
+    # Ošetříme, aby index nebyl mimo rozsah (např. po smazání)
+    if st.session_state.edit_index < len(st.session_state.treasures):
+        d = st.session_state.treasures[st.session_state.edit_index]
+    else:
+        st.session_state.edit_index = None
 
 fk = st.session_state.reset_form_key
-f_name = st.text_input("Název", value=d["name"], key=f"fn_{fk}")
+f_name = st.text_input("Název", value=str(d["name"]), key=f"fn_{fk}")
 f_types = st.multiselect("Typy keší", CACHE_TYPES, default=d["types"], key=f"ft_{fk}")
 f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
-f_diff = st.slider("Obtížnost (min-max)", 0.5, 5.0, (d["difficulty_min"], d["difficulty_max"]), 0.5, key=f"fd_{fk}")
-f_terr = st.slider("Terén (min-max)", 0.5, 5.0, (d["terrain_min"], d["terrain_max"]), 0.5, key=f"fterr_{fk}")
-f_fav = st.number_input("Min. srdíčka", 0, 1000, value=d["fav_min"], key=f"ff_{fk}")
+
+# Zajištění floatů pro slidery, aby nepadaly
+f_diff = st.slider("Obtížnost (min-max)", 0.5, 5.0, (float(d["difficulty_min"]), float(d["difficulty_max"])), 0.5, key=f"fd_{fk}")
+f_terr = st.slider("Terén (min-max)", 0.5, 5.0, (float(d["terrain_min"]), float(d["terrain_max"])), 0.5, key=f"fterr_{fk}")
+
+f_fav = st.number_input("Min. srdíčka", 0, 10000, value=int(d["fav_min"]), key=f"ff_{fk}")
 f_attrs = st.multiselect("Atributy", ATTRIBUTES, default=d["attrs"], key=f"fa_{fk}")
-f_rem = st.number_input("Zbývá kusů", 0, 100, value=d["remaining"], key=f"fr_{fk}")
+f_rem = st.number_input("Zbývá kusů", 0, 1000, value=int(d["remaining"]), key=f"fr_{fk}")
 
 b_col1, b_col2 = st.columns(2)
-if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
-    new_data = {
-        "name": f_name, "types": f_types, "sizes": f_sizes,
-        "difficulty_min": f_diff[0], "difficulty_max": f_diff[1],
-        "terrain_min": f_terr[0], "terrain_max": f_terr[1],
-        "fav_min": f_fav, "attrs": f_attrs, "remaining": f_rem
-    }
-    if st.session_state.edit_index is None:
-        st.session_state.treasures.append(new_data)
-    else:
-        st.session_state.treasures[st.session_state.edit_index] = new_data
-        st.session_state.edit_index = None
-    save()
-    st.rerun()
 
-if b_col2.button("Reset formuláře", use_container_width=True):
+if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
+    if not f_name:
+        st.error("Název nesmí být prázdný!")
+    else:
+        new_data = {
+            "name": f_name, 
+            "types": f_types, 
+            "sizes": f_sizes,
+            "difficulty_min": f_diff[0], 
+            "difficulty_max": f_diff[1],
+            "terrain_min": f_terr[0], 
+            "terrain_max": f_terr[1],
+            "fav_min": f_fav, 
+            "attrs": f_attrs, 
+            "remaining": f_rem
+        }
+        
+        # LOGIKA SYNCHRONIZACE: Pokud změníme počet kusů, změní se všem se stejným jménem
+        for idx, item in enumerate(st.session_state.treasures):
+            if item["name"] == f_name:
+                st.session_state.treasures[idx]["remaining"] = f_rem
+
+        if st.session_state.edit_index is None:
+            st.session_state.treasures.append(new_data)
+        else:
+            st.session_state.treasures[st.session_state.edit_index] = new_data
+            st.session_state.edit_index = None
+        
+        save()
+        st.rerun()
+
+if b_col2.button("Reset formuláře / Zrušit", use_container_width=True):
     st.session_state.edit_index = None
-    st.session_state.reset_form_key += 1 # Změna klíče "smaže" inputy
+    st.session_state.reset_form_key += 1
     st.rerun()
