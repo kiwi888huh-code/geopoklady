@@ -138,8 +138,31 @@ if btn_col2.button("Reset", use_container_width=True):
     st.rerun()
 
 # Výsledky
-if st.session_state.confirm_use == i:
-            if st.button(f"Potvrdit použití {t['name']}", key=f"y_{i}"):
+if st.session_state.results:
+    st.subheader("Vhodné poklady:")
+    for i, t in st.session_state.results:
+        r_col1, r_col2, r_col3, r_col4 = st.columns([4,2,1,1])
+        
+        # Zobrazení názvu a počtu (tady 'i' existuje díky cyklu)
+        r_col1.write(t["name"])
+        r_col2.write(f"Zbývá: {t['remaining']}")
+        
+        if r_col3.button("ℹ️", key=f"res_i_{i}"):
+            st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
+        
+        if r_col4.button("✅", key=f"use_{i}"):
+            st.session_state.confirm_use = i
+        
+        # Detail pod výsledkem
+        if st.session_state.open_detail_result == i:
+            st.info(f"T {t['terrain_min']}-{t['terrain_max']} | D {t['difficulty_min']}-{t['difficulty_max']} | FP {t['fav_min']}+")
+        
+        # LOGIKA POTVRZENÍ (musí být uvnitř cyklu for!)
+        if st.session_state.confirm_use == i:
+            st.warning(f"Opravdu použít {t['name']}?")
+            conf_col1, conf_col2 = st.columns(2)
+            
+            if conf_col1.button("Potvrdit ✅", key=f"y_{i}", use_container_width=True):
                 target_name = t['name']
                 # Synchronizovaný odpočet u všech variant se stejným jménem
                 for idx, item in enumerate(st.session_state.treasures):
@@ -147,6 +170,11 @@ if st.session_state.confirm_use == i:
                         st.session_state.treasures[idx]["remaining"] -= 1
                 
                 save()
+                st.session_state.confirm_use = None
+                st.session_state.results = [] # Vyčistíme výsledky po použití
+                st.rerun()
+                
+            if conf_col2.button("Zrušit ❌", key=f"n_{i}", use_container_width=True):
                 st.session_state.confirm_use = None
                 st.rerun()
 
