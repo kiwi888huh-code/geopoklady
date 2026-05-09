@@ -336,9 +336,51 @@ if st.session_state.show_list:
                     st.session_state.ask_which_variant = name
                     st.rerun()
 
+           # LOGIKA MAZÁNÍ (Upraveno pro jednotlivé varianty)
             if col_del.button("❌", key=f"del_group_{name}"):
-                st.session_state.confirm_delete = name
-                st.rerun()
+                if len(variants) == 1:
+                    # Jen jedna varianta - klasický dotaz
+                    st.session_state.confirm_delete = name
+                    st.rerun()
+                else:
+                    # Více variant - aktivujeme speciální dotaz na výběr
+                    st.session_state.ask_which_delete = name
+                    st.rerun()
+
+            # SCÉNÁŘ 1: Výběr konkrétní varianty ke smazání (u duplikátů)
+            if st.session_state.get("ask_which_delete") == name:
+                st.warning(f"Kterou variantu '{name}' chceš smazat?")
+                for v_idx, v_data in variants:
+                    v_label = f"Smazat: {', '.join(v_data['types']) if v_data['types'] else 'Všechny typy'}"
+                    if st.button(v_label, key=f"select_del_{v_idx}", use_container_width=True):
+                        st.session_state.treasures.pop(v_idx)
+                        save()
+                        st.session_state.ask_which_delete = None
+                        st.rerun()
+                
+                st.divider()
+                if st.button(f"🗑️ SMAZAT ÚPLNĚ VŠE ({name})", key=f"del_all_{name}", type="primary", use_container_width=True):
+                    st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
+                    save()
+                    st.session_state.ask_which_delete = None
+                    st.rerun()
+                
+                if st.button("Zpět", key=f"cancel_del_sel_{name}", use_container_width=True):
+                    st.session_state.ask_which_delete = None
+                    st.rerun()
+
+            # SCÉNÁŘ 2: Klasické potvrzení smazání (u jedné varianty)
+            if st.session_state.confirm_delete == name:
+                st.error(f"Opravdu smazat '{name}'?")
+                c1, c2 = st.columns(2)
+                if c1.button("Ano", key=f"conf_yes_all_{name}", use_container_width=True):
+                    st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
+                    save()
+                    st.session_state.confirm_delete = None
+                    st.rerun()
+                if c2.button("Ne", key=f"conf_no_all_{name}", use_container_width=True):
+                    st.session_state.confirm_delete = None
+                    st.rerun()
 
 # NOVÝ BLOK: Dotaz na konkrétní variantu duplikátu (podle typu cache)
             if st.session_state.ask_which_variant == name:
