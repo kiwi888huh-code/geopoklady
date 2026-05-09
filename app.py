@@ -322,10 +322,31 @@ if st.session_state.show_list:
                 else: st.session_state.expanded_info.add(name)
                 st.rerun()
 
-            if col_edit.button("🖌️", key=f"edit_group_{name}"):
-                st.session_state.edit_index = variants[0][0]
-                st.session_state.reset_form_key += 1  # Toto zajistí načtení dat do formuláře
-                st.rerun()
+          if col_edit.button("🖌️", key=f"edit_group_{name}"):
+                if len(variants) == 1:
+                    # Pouze jedna varianta - rovnou do editace
+                    st.session_state.edit_index = variants[0][0]
+                    st.session_state.reset_form_key += 1
+                    st.rerun()
+                else:
+                    # Více variant - spustíme dotaz
+                    st.session_state.ask_which_variant = name
+                    st.rerun()
+
+            # --- DIALOG PRO VÝBĚR VARIANTY K EDITACI ---
+            if st.session_state.get("ask_which_variant") == name:
+                st.info(f"Kterou variantu pokladu '{name}' chceš upravit?")
+                for v_idx, v_data in variants:
+                    # Vytvoříme popisek, aby uživatel poznal, o co jde
+                    label = f"Sklad: {v_data['remaining']}ks | T{v_data['terrain_min']}-D{v_data['difficulty_min']}"
+                    if st.button(label, key=f"choose_edit_{v_idx}", use_container_width=True):
+                        st.session_state.edit_index = v_idx
+                        st.session_state.ask_which_variant = None
+                        st.session_state.reset_form_key += 1
+                        st.rerun()
+                if st.button("Zrušit výběr", key=f"cancel_ask_{name}", use_container_width=True, type="secondary"):
+                    st.session_state.ask_which_variant = None
+                    st.rerun()
 
             if col_del.button("❌", key=f"del_group_{name}"):
                 st.session_state.confirm_delete = name
@@ -381,32 +402,38 @@ fk = st.session_state.reset_form_key
 f_name = st.text_input("Název", value=str(d["name"]), key=f"fn_{fk}")
 f_types = st.multiselect("Typy", CACHE_TYPES, default=d["types"], key=f"ft_{fk}")
 f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
-# Oprava: explicitní přetypování na float pro slider
+
+# Explicitní přetypování na float pro slider, aby nedocházelo k chybám typu
 f_diff = st.slider("Obtížnost", 0.5, 5.0, (float(d["difficulty_min"]), float(d["difficulty_max"])), 0.5, key=f"fd_{fk}")
 f_terr = st.slider("Terén", 0.5, 5.0, (float(d["terrain_min"]), float(d["terrain_max"])), 0.5, key=f"fterr_{fk}")
 f_fav = st.number_input("Min. srdíčka", 0, 10000, value=int(d["fav_min"]), key=f"ff_{fk}")
 f_attrs = st.multiselect("Atributy", ATTRIBUTES, default=d["attrs"], key=f"fa_{fk}")
 f_rem = st.number_input("Zbývá kusů", 0, 1000, value=int(d["remaining"]), key=f"fr_{fk}")
+
 b_col1, b_col2 = st.columns(2)
 
 # Logika pro uložení
 if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
     if f_name:
         new_entry = {
-            "name": f_name, "types": f_types, "sizes": f_sizes, 
-            "difficulty_min": f_diff[0], "difficulty_max": f_diff[1], 
-            "terrain_min": f_terr[0], "terrain_max": f_terr[1], 
-            "fav_min": f_fav, "attrs": f_attrs, "remaining": f_rem
+            "name": f_name, 
+            "types": f_types, 
+            "sizes": f_sizes, 
+            "difficulty_min": float(f_diff[0]), "difficulty_max": float(f_diff[1]), 
+            "terrain_min": float(f_terr[0]), "terrain_max": float(f_terr[1]), 
+            "fav_min": int(f_fav), 
+            "attrs": f_attrs, 
+            "remaining": int(f_rem)
         }
 
-        # SCÉNÁŘ A: Klasická úprava (Edit mode)
+        # SCÉNÁŘ A: Klasická úprava (Edit mode) - Teď upravujeme přesně ten jeden vybraný index
         if st.session_state.edit_index is not None:
             st.session_state.treasures[st.session_state.edit_index] = new_entry
             save()
             st.session_state.edit_index = None
             st.rerun()
         
-        # SCÉNÁŘ B: Kontrola duplikátu před přidáním nového
+        # SCÉNÁŘ B: Kontrola duplikátu POUZE při přidávání nového
         else:
             dup_idx = None
             for idx, item in enumerate(st.session_state.treasures):
@@ -415,11 +442,11 @@ if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
                     break
             
             if dup_idx is not None:
-                # Našli jsme shodu, vyvoláme dialog
+                # Našli jsme shodu, vyvoláme dialog (to se stane jen při tvorbě nového)
                 st.session_state.duplicate_pending = new_entry
                 st.rerun()
             else:
-                # Žádná shoda, rovnou uložíme
+                # Žádná shoda, rovnou přidáme jako nový záznam
                 st.session_state.treasures.append(new_entry)
                 save()
                 st.rerun()
@@ -427,16 +454,18 @@ if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
 if b_col2.button("Zrušit", use_container_width=True):
     st.session_state.edit_index = None
     st.session_state.reset_form_key += 1
-    if "duplicate_pending" in st.session_state: del st.session_state.duplicate_pending
+    if "duplicate_pending" in st.session_state: 
+        del st.session_state.duplicate_pending
     st.rerun()
 
-# --- ŘEŠENÍ DUPLIKÁTŮ (Dialog pod formulářem) ---
+# --- ŘEŠENÍ DUPLIKÁTŮ (Dialog pod formulářem - aktivuje se jen u nového záznamu) ---
 if "duplicate_pending" in st.session_state:
     pending = st.session_state.duplicate_pending
     st.warning(f"Poklad se jménem **{pending['name']}** už v seznamu existuje. Co chceš udělat?")
     d_col1, d_col2, d_col3 = st.columns(3)
     
-    if d_col1.button("Upravit stávající", use_container_width=True):
+    if d_col1.button("Upravit stávající", key="dup_update", use_container_width=True):
+        # Najdeme první výskyt a ten přepíšeme
         for idx, item in enumerate(st.session_state.treasures):
             if item["name"].lower() == pending["name"].lower():
                 st.session_state.treasures[idx] = pending
@@ -445,12 +474,12 @@ if "duplicate_pending" in st.session_state:
         del st.session_state.duplicate_pending
         st.rerun()
         
-    if d_col2.button("Přidat jako další duplikát", use_container_width=True):
+    if d_col2.button("Přidat jako další duplikát", key="dup_add", use_container_width=True):
         st.session_state.treasures.append(pending)
         save()
         del st.session_state.duplicate_pending
         st.rerun()
         
-    if d_col3.button("Zrušit", use_container_width=True):
+    if d_col3.button("Zrušit", key="dup_cancel", use_container_width=True):
         del st.session_state.duplicate_pending
         st.rerun()
