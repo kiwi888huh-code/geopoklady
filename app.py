@@ -323,8 +323,10 @@ if st.session_state.show_list:
                 else: st.session_state.expanded_info.add(name)
                 st.rerun()
 
-            if col_edit.button("🖌️", key=f"edit_group_{name}"):
+        if col_edit.button("🖌️", key=f"edit_group_{name}"):
                 st.session_state.edit_index = variants[0][0]
+                # PŘIDÁNO: Změna klíče vynutí přepsání formuláře daty z d
+                st.session_state.reset_form_key += 1 
                 st.rerun()
 
             if col_del.button("❌", key=f"del_group_{name}"):
@@ -365,8 +367,13 @@ if st.session_state.show_list:
 st.divider()
 
 if st.session_state.edit_index is not None:
-    st.header(f"Upravit: {st.session_state.treasures[st.session_state.edit_index]['name']}")
-    d = st.session_state.treasures[st.session_state.edit_index]
+    # Kontrola pro jistotu, aby index nebyl mimo rozsah
+    if st.session_state.edit_index < len(st.session_state.treasures):
+        st.header(f"Upravit: {st.session_state.treasures[st.session_state.edit_index]['name']}")
+        d = st.session_state.treasures[st.session_state.edit_index]
+    else:
+        st.session_state.edit_index = None
+        st.rerun()
 else:
     st.header("Přidat nový poklad")
     d = {"name": "", "types": [], "terrain_min": 0.5, "terrain_max": 5.0, "difficulty_min": 0.5, "difficulty_max": 5.0, "sizes": [], "fav_min": 0, "attrs": [], "remaining": 0}
@@ -375,12 +382,12 @@ fk = st.session_state.reset_form_key
 f_name = st.text_input("Název", value=str(d["name"]), key=f"fn_{fk}")
 f_types = st.multiselect("Typy", CACHE_TYPES, default=d["types"], key=f"ft_{fk}")
 f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
+# Oprava: explicitní přetypování na float pro slider
 f_diff = st.slider("Obtížnost", 0.5, 5.0, (float(d["difficulty_min"]), float(d["difficulty_max"])), 0.5, key=f"fd_{fk}")
 f_terr = st.slider("Terén", 0.5, 5.0, (float(d["terrain_min"]), float(d["terrain_max"])), 0.5, key=f"fterr_{fk}")
 f_fav = st.number_input("Min. srdíčka", 0, 10000, value=int(d["fav_min"]), key=f"ff_{fk}")
 f_attrs = st.multiselect("Atributy", ATTRIBUTES, default=d["attrs"], key=f"fa_{fk}")
 f_rem = st.number_input("Zbývá kusů", 0, 1000, value=int(d["remaining"]), key=f"fr_{fk}")
-
 b_col1, b_col2 = st.columns(2)
 
 # Logika pro uložení
