@@ -16,18 +16,26 @@ if "username" not in st.session_state:
 # --- 3. LOGIKA PŘIHLÁŠENÍ S PAMĚTÍ A HESLEM ---
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
+if "confirm_new_user" not in st.session_state:
+    st.session_state["confirm_new_user"] = False
 
-def verify_user(username, password):
+def check_user_status(username):
+    """
+    Vrací: 
+    - 'exists': uživatel má v DB heslo
+    - 'new': uživatel v DB není
+    - 'error': chyba spojení
+    """
     try:
         res = supabase.table("treasures").select("password").eq("user_id", username).not_.is_("password", "null").execute()
         if res.data:
-            return res.data[0]["password"] == password
+            return "exists", res.data[0]["password"]
         else:
-            return True # Nový uživatel
+            return "new", None
     except:
-        return False
+        return "error", None
 
-# Automatické přihlášení z paměti
+# Automatické přihlášení z paměti zůstává stejné
 if not st.session_state["logged_in"]:
     stored_user = localS.getItem("gc_user")
     url_user = st.query_params.get("user")
@@ -38,24 +46,51 @@ if not st.session_state["logged_in"]:
 # Přihlašovací formulář
 if not st.session_state["logged_in"]:
     st.title("Geocaching filtr – Přihlášení")
-    u_input = st.text_input("Uživatelské jméno:").lower().strip()
-    p_input = st.text_input("Heslo:", type="password")
+    u_input = st.text_input("Uživatelské jméno:", disabled=st.session_state.confirm_new_user).lower().strip()
+    p_input = st.text_input("Heslo:", type="password", disabled=st.session_state.confirm_new_user)
     
-    if st.button("Vstoupit"):
-        if u_input and p_input:
-            if verify_user(u_input, p_input):
-                st.session_state["username"] = u_input
-                st.session_state["logged_in"] = True
-                # KLÍČOVÝ DOPLNĚK: Uložíme heslo pro funkci save()
-                st.session_state["current_password"] = p_input 
-                localS.setItem("gc_user", u_input)
-                st.query_params["user"] = u_input
-                st.success("Přihlášeno!")
-                st.rerun()
+    if not st.session_state.confirm_new_user:
+        if st.button("Vstoupit"):
+            if u_input and p_input:
+                status, db_password = check_user_status(u_input)
+                
+                if status == "exists":
+                    if db_password == p_input:
+                        st.session_state["username"] = u_input
+                        st.session_state["logged_in"] = True
+                        st.session_state["current_password"] = p_input 
+                        localS.setItem("gc_user", u_input)
+                        st.query_params["user"] = u_input
+                        st.rerun()
+                    else:
+                        st.error("Nesprávné heslo pro tohoto uživatele!")
+                
+                elif status == "new":
+                    # Uživatel neexistuje, aktivujeme potvrzovací dialog
+                    st.session_state.confirm_new_user = True
+                    st.rerun()
+                else:
+                    st.error("Chyba při spojení s databází.")
             else:
-                st.error("Nesprávné heslo pro tohoto uživatele!")
-        else:
-            st.error("Vyplň jméno i heslo!")
+                st.error("Vyplň jméno i heslo!")
+    else:
+        # POTVRZOVACÍ DIALOG PRO NOVÉHO UŽIVATELE
+        st.warning(f"Uživatel **{u_input}** neexistuje. Chceš vytvořit nový účet s tímto heslem?")
+        c1, c2 = st.columns(2)
+        if c1.button("Ano, vytvořit", type="primary", use_container_width=True):
+            st.session_state["username"] = u_input
+            st.session_state["logged_in"] = True
+            st.session_state["current_password"] = p_input 
+            st.session_state.confirm_new_user = False
+            localS.setItem("gc_user", u_input)
+            st.query_params["user"] = u_input
+            st.success("Účet vytvořen!")
+            st.rerun()
+        
+        if c2.button("Ne, opravit údaje", use_container_width=True):
+            st.session_state.confirm_new_user = False
+            st.rerun()
+
     st.stop()
 
 # --- 4. KONSTANTY ---
