@@ -439,9 +439,11 @@ if st.session_state.show_list:
                 for original_idx, t_var in variants:
                     with st.container():
                         info_lines = []
+                        # TADY BYLA CHYBA - Řádky níže musí být odsazeny o 4 mezery víc než 'info_lines'
                         if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
-                safe_types_var = [txt.replace(" ", "\u00A0") for txt in t_var['types']]
-                info_lines.append(f"➖ {', '.join(safe_types_var)}")
+                            safe_types_var = [txt.replace(" ", "\u00A0") for txt in t_var['types']]
+                            info_lines.append(f"➖ {', '.join(safe_types_var)}")
+                        
                         if t_var['sizes'] and len(t_var['sizes']) < len(SIZES):
                             info_lines.append(f"➖ {', '.join(t_var['sizes'])}")
                         if t_var['terrain_min'] > 0.5 or t_var['terrain_max'] < 5.0:
