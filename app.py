@@ -363,6 +363,17 @@ if st.session_state.show_list:
 
 # --- 10. FORMULÁŘ PŘIDAT / UPRAVIT ---
 st.divider()
+
+# Pomocná proměnná pro detekci duplikátu při přidávání nového
+duplicate_found = False
+if st.session_state.edit_index is None and f_name:
+    # Hledáme, jestli už jméno existuje (ignorujeme velikost písmen)
+    for idx, item in enumerate(st.session_state.treasures):
+        if item["name"].lower() == f_name.lower():
+            duplicate_found = True
+            dup_idx = idx
+            break
+
 if st.session_state.edit_index is not None:
     st.header(f"Upravit: {st.session_state.treasures[st.session_state.edit_index]['name']}")
     d = st.session_state.treasures[st.session_state.edit_index]
@@ -381,16 +392,62 @@ f_attrs = st.multiselect("Atributy", ATTRIBUTES, default=d["attrs"], key=f"fa_{f
 f_rem = st.number_input("Zbývá kusů", 0, 1000, value=int(d["remaining"]), key=f"fr_{fk}")
 
 b_col1, b_col2 = st.columns(2)
+
+# Logika pro uložení
 if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
     if f_name:
-        new_data = {"name": f_name, "types": f_types, "sizes": f_sizes, "difficulty_min": f_diff[0], "difficulty_max": f_diff[1], "terrain_min": f_terr[0], "terrain_max": f_terr[1], "fav_min": f_fav, "attrs": f_attrs, "remaining": f_rem}
-        if st.session_state.edit_index is None: st.session_state.treasures.append(new_data)
-        else: st.session_state.treasures[st.session_state.edit_index] = new_data
-        save()
-        st.session_state.edit_index = None
-        st.rerun()
+        new_entry = {
+            "name": f_name, "types": f_types, "sizes": f_sizes, 
+            "difficulty_min": f_diff[0], "difficulty_max": f_diff[1], 
+            "terrain_min": f_terr[0], "terrain_max": f_terr[1], 
+            "fav_min": f_fav, "attrs": f_attrs, "remaining": f_rem
+        }
+
+        # SCÉNÁŘ A: Klasická úprava (Edit mode)
+        if st.session_state.edit_index is not None:
+            st.session_state.treasures[st.session_state.edit_index] = new_entry
+            save()
+            st.session_state.edit_index = None
+            st.rerun()
+        
+        # SCÉNÁŘ B: Přidávání nového, ale jméno už existuje (Duplikát)
+        elif duplicate_found:
+            st.session_state.duplicate_pending = new_entry
+            # Tady se nic neuloží, jen vyvoláme otázku (viz níže)
+        
+        # SCÉNÁŘ C: Čisté přidání nového
+        else:
+            st.session_state.treasures.append(new_entry)
+            save()
+            st.rerun()
 
 if b_col2.button("Zrušit", use_container_width=True):
     st.session_state.edit_index = None
     st.session_state.reset_form_key += 1
+    if "duplicate_pending" in st.session_state: del st.session_state.duplicate_pending
     st.rerun()
+
+# --- ŘEŠENÍ DUPLIKÁTŮ ---
+if "duplicate_pending" in st.session_state:
+    st.warning(f"Poklad se jménem **{f_name}** už v seznamu existuje. Co chceš udělat?")
+    d_col1, d_col2, d_col3 = st.columns(3)
+    
+    if d_col1.button("Upravit stávající", use_container_width=True):
+        # Najdeme index toho stávajícího a přepíšeme ho
+        for idx, item in enumerate(st.session_state.treasures):
+            if item["name"].lower() == f_name.lower():
+                st.session_state.treasures[idx] = st.session_state.duplicate_pending
+                break
+        save()
+        del st.session_state.duplicate_pending
+        st.rerun()
+        
+    if d_col2.button("Přidat jako další duplikát", use_container_width=True):
+        st.session_state.treasures.append(st.session_state.duplicate_pending)
+        save()
+        del st.session_state.duplicate_pending
+        st.rerun()
+        
+    if d_col3.button("Zrušit", use_container_width=True):
+        del st.session_state.duplicate_pending
+        st.rerun()
