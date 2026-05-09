@@ -265,9 +265,9 @@ if st.session_state.results:
                 info_lines = []
                 # Filtrujeme jen to, co není "univerzální"
                 if t['types'] and len(t['types']) < len(CACHE_TYPES):
-    # Tohle zajistí, že se emoji neodtrhne od textu
-                    safe_types = [txt.replace(" ", "\u00A0") for txt in t['types']]
-                    info_lines.append(f"➖ {', '.join(safe_types)}")
+                if t['types'] and len(t['types']) < len(CACHE_TYPES):
+            safe_types = [txt.replace(" ", "\u00A0") for txt in t['types']]
+            info_lines.append(f"➖ {', '.join(safe_types)}")
                 if t['sizes'] and len(t['sizes']) < len(SIZES):
                     info_lines.append(f"➖ {', '.join(t['sizes'])}")
                 if t['terrain_min'] > 0.5 or t['terrain_max'] < 5.0:
@@ -440,9 +440,8 @@ if st.session_state.show_list:
                     with st.container():
                         info_lines = []
                         if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
-    # Stejný trik pro seznam pokladů
-                           safe_types_var = [txt.replace(" ", "\u00A0") for txt in t_var['types']]
-                           info_lines.append(f"➖ {', '.join(safe_types_var)}")
+                safe_types_var = [txt.replace(" ", "\u00A0") for txt in t_var['types']]
+                info_lines.append(f"➖ {', '.join(safe_types_var)}")
                         if t_var['sizes'] and len(t_var['sizes']) < len(SIZES):
                             info_lines.append(f"➖ {', '.join(t_var['sizes'])}")
                         if t_var['terrain_min'] > 0.5 or t_var['terrain_max'] < 5.0:
