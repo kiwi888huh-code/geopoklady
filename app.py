@@ -20,28 +20,27 @@ if "confirm_new_user" not in st.session_state:
     st.session_state["confirm_new_user"] = False
 
 def check_user_status(username):
-    """
-    Vrací: 
-    - 'exists': uživatel má v DB heslo
-    - 'new': uživatel v DB není
-    - 'error': chyba spojení
-    """
     try:
-        res = supabase.table("treasures").select("password").eq("user_id", username).not_.is_("password", "null").execute()
-        if res.data:
-            return "exists", res.data[0]["password"]
+        # Hledáme jakýkoliv záznam uživatele, abychom zjistili heslo
+        res = supabase.table("treasures").select("password").eq("user_id", username).execute()
+        if res.data and any(row.get("password") for row in res.data):
+            # Najdeme první řádek, kde není heslo prázdné
+            pwd = next(row["password"] for row in res.data if row.get("password"))
+            return "exists", pwd
         else:
             return "new", None
-    except:
-        return "error", None
+    except Exception as e:
+        return "error", str(e)
 
-# Automatické přihlášení z paměti zůstává stejné
+# Automatické přihlášení z paměti
 if not st.session_state["logged_in"]:
     stored_user = localS.getItem("gc_user")
     url_user = st.query_params.get("user")
     if url_user or stored_user:
         st.session_state["username"] = (url_user or stored_user).lower().strip()
         st.session_state["logged_in"] = True
+        # Poznámka: Heslo v session při auto-loginu chybí, 
+        # ale save() ho tam doplní při prvním ručním uložení, pokud ho uživatel zná.
 
 # Přihlašovací formulář
 if not st.session_state["logged_in"]:
@@ -64,33 +63,40 @@ if not st.session_state["logged_in"]:
                         st.rerun()
                     else:
                         st.error("Nesprávné heslo pro tohoto uživatele!")
-                
                 elif status == "new":
-                    # Uživatel neexistuje, aktivujeme potvrzovací dialog
                     st.session_state.confirm_new_user = True
                     st.rerun()
                 else:
-                    st.error("Chyba při spojení s databází.")
+                    st.error(f"Chyba databáze: {db_password}")
             else:
                 st.error("Vyplň jméno i heslo!")
     else:
-        # POTVRZOVACÍ DIALOG PRO NOVÉHO UŽIVATELE
-        st.warning(f"Uživatel **{u_input}** neexistuje. Chceš vytvořit nový účet s tímto heslem?")
+        st.warning(f"Uživatel **{u_input}** neexistuje. Chceš vytvořit nový účet?")
         c1, c2 = st.columns(2)
         if c1.button("Ano, vytvořit", type="primary", use_container_width=True):
-            st.session_state["username"] = u_input
-            st.session_state["logged_in"] = True
-            st.session_state["current_password"] = p_input 
-            st.session_state.confirm_new_user = False
-            localS.setItem("gc_user", u_input)
-            st.query_params["user"] = u_input
-            st.success("Účet vytvořen!")
-            st.rerun()
+            # --- KLÍČOVÁ OPRAVA: Zápis startovacího bodu do DB ---
+            try:
+                # Vložíme "neviditelný" záznam, který nese heslo, aby nás DB příště poznala
+                supabase.table("treasures").insert({
+                    "user_id": u_input, 
+                    "password": p_input,
+                    "name": "_INITIAL_STATE_", # Speciální název, load_data ho odfiltruje
+                    "remaining": 0
+                }).execute()
+                
+                st.session_state["username"] = u_input
+                st.session_state["logged_in"] = True
+                st.session_state["current_password"] = p_input 
+                st.session_state.confirm_new_user = False
+                localS.setItem("gc_user", u_input)
+                st.query_params["user"] = u_input
+                st.rerun()
+            except Exception as e:
+                st.error(f"Nepodařilo se založit účet: {e}")
         
         if c2.button("Ne, opravit údaje", use_container_width=True):
             st.session_state.confirm_new_user = False
             st.rerun()
-
     st.stop()
 
 # --- 4. KONSTANTY ---
@@ -106,6 +112,7 @@ def load_data():
         if not data:
             res_templates = supabase.table("treasures").select("*").is_("user_id", "null").execute()
             templates = res_templates.data or []
+            data = [t for t in data if t.get("name") != "_INITIAL_STATE_"]
             if templates:
                 for t in templates:
                     new_t = t.copy()
