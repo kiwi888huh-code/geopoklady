@@ -344,16 +344,12 @@ if st.session_state.show_list:
             if st.session_state.ask_which_variant == name:
                 st.info(f"Kterou variantu '{name}' chceš upravit?")
                 for v_idx, v_data in variants:
-                    # Vytvoření popisku na základě typů keší
+                    # Vytvoření popisku čistě na základě typů keší
                     if v_data['types']:
-                        # Pokud má varianta vybrané typy, vypíšeme je (zkráceně bez emotikonů pro čistotu, nebo s nimi)
-                        v_label = f"Pro typy: {', '.join(v_data['types'])}"
+                        v_label = f"Typy: {', '.join(v_data['types'])}"
                     else:
-                        v_label = "Pro všechny typy (univerzální)"
+                        v_label = "Všechny typy (univerzální)"
                     
-                    # Přidáme informaci o počtu kusů na konec pro lepší orientaci
-                    v_label += f" | Sklad: {v_data['remaining']}ks"
-
                     if st.button(v_label, key=f"select_edit_{v_idx}", use_container_width=True):
                         st.session_state.edit_index = v_idx
                         st.session_state.ask_which_variant = None
