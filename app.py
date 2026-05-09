@@ -13,7 +13,7 @@ localS = LocalStorage()
 if "username" not in st.session_state:
     st.session_state["username"] = None
 
-# --- 3. LOGIKA PŘIHLÁŠENÍ ---
+# --- 3. LOGIKA PŘIHLÁŠENÍ S PAMĚTÍ A HESLEM ---
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "confirm_new_user" not in st.session_state:
@@ -55,12 +55,12 @@ if not st.session_state["logged_in"]:
                         st.query_params["user"] = u_input
                         st.rerun()
                     else:
-                        st.error("Nesprávné heslo!")
+                        st.error("Nesprávné heslo pro tohoto uživatele!")
                 elif status == "new":
                     st.session_state.confirm_new_user = True
                     st.rerun()
                 else:
-                    st.error(f"Chyba: {db_password}")
+                    st.error(f"Chyba databáze: {db_password}")
             else:
                 st.error("Vyplň jméno i heslo!")
     else:
@@ -69,8 +69,10 @@ if not st.session_state["logged_in"]:
         if c1.button("Ano, vytvořit", type="primary", use_container_width=True):
             try:
                 supabase.table("treasures").insert({
-                    "user_id": u_input, "password": p_input,
-                    "name": "_INITIAL_STATE_", "remaining": 0
+                    "user_id": u_input, 
+                    "password": p_input,
+                    "name": "_INITIAL_STATE_", 
+                    "remaining": 0
                 }).execute()
                 st.session_state["username"] = u_input
                 st.session_state["logged_in"] = True
@@ -80,7 +82,7 @@ if not st.session_state["logged_in"]:
                 st.query_params["user"] = u_input
                 st.rerun()
             except Exception as e:
-                st.error(f"Chyba při založení: {e}")
+                st.error(f"Nepodařilo se založit účet: {e}")
         if c2.button("Ne, opravit údaje", use_container_width=True):
             st.session_state.confirm_new_user = False
             st.rerun()
@@ -114,22 +116,45 @@ def load_data():
         return clean
     except: return []
 
+def import_templates():
+    try:
+        # Načteme šablony (řádky, kde user_id je null)
+        res_templates = supabase.table("treasures").select("*").is_("user_id", "null").execute()
+        templates = res_templates.data or []
+        if templates:
+            for t in templates:
+                new_t = t.copy()
+                if "id" in new_t: del new_t["id"]
+                new_t["user_id"] = st.session_state["username"]
+                if "current_password" in st.session_state:
+                    new_t["password"] = st.session_state["current_password"]
+                supabase.table("treasures").insert(new_t).execute()
+            st.session_state.treasures = load_data()
+            st.toast("Balíček šablon stažen!", icon="📥")
+            st.rerun()
+        else:
+            st.error("V databázi nebyly nalezeny žádné šablony.")
+    except Exception as e:
+        st.error(f"Chyba při importu: {e}")
+
 def save():
     try:
         supabase.table("treasures").delete().eq("user_id", st.session_state["username"]).execute()
-        # Znovu vložíme startovací bod, aby uživatel nezmizel z DB při smazání všech pokladů
+        # Zpětně vložíme inicializační řádek, aby v DB zůstalo heslo i při prázdném seznamu
         supabase.table("treasures").insert({
             "user_id": st.session_state["username"], 
             "password": st.session_state.get("current_password"),
             "name": "_INITIAL_STATE_", "remaining": 0
         }).execute()
         for t in st.session_state.treasures:
-            t_save = t.copy()
-            t_save["user_id"] = st.session_state["username"]
-            if "current_password" in st.session_state: t_save["password"] = st.session_state["current_password"]
-            supabase.table("treasures").insert(t_save).execute()
+            t_to_save = t.copy()
+            t_to_save["user_id"] = st.session_state["username"]
+            if "current_password" in st.session_state:
+                t_to_save["password"] = st.session_state["current_password"]
+            supabase.table("treasures").insert(t_to_save).execute()
         st.toast("Uloženo!", icon="💾")
-    except Exception as e: st.error(f"Chyba: {e}")
+    except Exception as e: 
+        st.error(f"Chyba při ukládání: {e}")
 
 def delete_account():
     try:
@@ -140,55 +165,53 @@ def delete_account():
         if "treasures" in st.session_state: del st.session_state["treasures"]
         st.query_params.clear()
         st.rerun()
-    except Exception as e: st.error(f"Chyba: {e}")
-
-def import_templates():
-    try:
-        res = supabase.table("treasures").select("*").is_("user_id", "null").execute()
-        templates = res.data or []
-        if templates:
-            for t in templates:
-                nt = t.copy()
-                if "id" in nt: del nt["id"]
-                nt["user_id"] = st.session_state["username"]
-                if "current_password" in st.session_state: nt["password"] = st.session_state["current_password"]
-                supabase.table("treasures").insert(nt).execute()
-            st.session_state.treasures = load_data()
-            st.success("Balíček stažen!")
-            st.rerun()
-    except Exception as e: st.error(f"Chyba importu: {e}")
+    except Exception as e:
+        st.error(f"Chyba při mazání účtu: {e}")
 
 # --- 6. SESSION STATE ---
 if "treasures" not in st.session_state:
     st.session_state.treasures = load_data()
 
-for key, val in {"show_list": False, "edit_index": None, "results": [], "confirm_use": None, 
-                 "confirm_delete": None, "reset_cache_key": 0, "reset_form_key": 1000}.items():
+if "reset_cache_key" not in st.session_state: st.session_state.reset_cache_key = 0
+if "reset_form_key" not in st.session_state: st.session_state.reset_form_key = 1000
+
+for key, val in {"show_list": False, "open_detail": None, "open_detail_result": None, 
+                 "edit_index": None, "results": [], "confirm_use": None, "confirm_delete": None}.items():
     if key not in st.session_state: st.session_state[key] = val
 
 # --- 7. SIDEBAR ---
 with st.sidebar:
     st.write(f"Uživatel: **{st.session_state['username']}**")
+    
     if st.button("Odhlásit se", use_container_width=True):
         localS.deleteItem("gc_user")
+        st.session_state["username"] = None
         st.session_state["logged_in"] = False
+        if "treasures" in st.session_state: del st.session_state["treasures"]
+        st.query_params.clear()
         st.rerun()
     
     st.divider()
-    if st.button("📥 Stáhnout balíček pokladů", use_container_width=True):
+    
+    # NOVÉ: Tlačítko pro stažení šablon v sidebaru
+    if st.button("📥 Stáhnout balíček šablon", use_container_width=True):
         import_templates()
 
     st.divider()
-    if "confirm_delete_account" not in st.session_state: st.session_state.confirm_delete_account = False
+    
+    if "confirm_delete_account" not in st.session_state:
+        st.session_state.confirm_delete_account = False
+        
     if not st.session_state.confirm_delete_account:
         if st.button("Smazat účet 🗑️", use_container_width=True, type="secondary"):
             st.session_state.confirm_delete_account = True
             st.rerun()
     else:
-        st.warning("Smazat vše?")
-        c1, c2 = st.columns(2)
-        if c1.button("ANO", type="primary", use_container_width=True): delete_account()
-        if c2.button("NE", use_container_width=True):
+        st.warning("Opravdu smazat účet?")
+        col_del1, col_del2 = st.columns(2)
+        if col_del1.button("ANO, SMAZAT", type="primary", use_container_width=True):
+            delete_account()
+        if col_del2.button("Zrušit", use_container_width=True):
             st.session_state.confirm_delete_account = False
             st.rerun()
 
@@ -231,69 +254,121 @@ if st.session_state.results:
         r_col1.write(t["name"])
         r_col2.write(f"Zbývá: {t['remaining']}")
         if r_col3.button("ℹ️", key=f"res_i_{i}"):
-            st.info(f"T {t['terrain_min']}-{t['terrain_max']} | D {t['difficulty_min']}-{t['difficulty_max']} | FP {t['fav_min']}+")
+            st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
         if r_col4.button("✅", key=f"use_{i}"):
             st.session_state.confirm_use = i
         
+        if st.session_state.open_detail_result == i:
+            st.info(f"T {t['terrain_min']}-{t['terrain_max']} | D {t['difficulty_min']}-{t['difficulty_max']} | FP {t['fav_min']}+")
+        
         if st.session_state.confirm_use == i:
-            st.warning(f"Použít {t['name']}?")
+            st.warning(f"Opravdu použít {t['name']}?")
             conf_col1, conf_col2 = st.columns(2)
-            if conf_col1.button("ANO ✅", key=f"y_{i}"):
+            if conf_col1.button("Potvrdit ✅", key=f"y_{i}", use_container_width=True):
+                target_name = t['name']
                 for idx, item in enumerate(st.session_state.treasures):
-                    if item["name"] == t["name"]: st.session_state.treasures[idx]["remaining"] = max(0, item["remaining"] - 1)
+                    if item["name"] == target_name:
+                        st.session_state.treasures[idx]["remaining"] = max(0, item["remaining"] - 1)
                 save()
                 st.session_state.confirm_use = None
                 st.session_state.results = []
                 st.rerun()
-            if conf_col2.button("NE ❌", key=f"n_{i}"):
+            if conf_col2.button("Zrušit ❌", key=f"n_{i}", use_container_width=True):
                 st.session_state.confirm_use = None
                 st.rerun()
 
 # --- 9. SEZNAM POKLADŮ ---
 st.divider()
-if st.button("Zobrazit / skrýt seznam pokladů", use_container_width=True):
+if "expanded_info" not in st.session_state:
+    st.session_state.expanded_info = set()
+
+if st.button("Zobrazit / skrýt seznam pokladů"):
     st.session_state.show_list = not st.session_state.show_list
 
 if st.session_state.show_list:
     st.header("Seznam pokladů")
+    
+    # NOVÉ: Kontrola prázdného seznamu a výzva k importu
     if not st.session_state.treasures:
-        st.info("Tvůj seznam je prázdný.")
-        if st.button("📥 Stáhnout základní balíček?", type="primary"): import_templates()
+        st.info("Tvůj seznam pokladů je prázdný.")
+        st.write("Chceš stáhnout základní balíček šablon?")
+        if st.button("Ano, stáhnout balíček ✅", type="primary"):
+            import_templates()
     else:
         grouped = {}
         for i, t in enumerate(st.session_state.treasures):
-            if t["name"] not in grouped: grouped[t["name"]] = []
-            grouped[t["name"]].append((i, t))
+            name = t["name"]
+            if name not in grouped: grouped[name] = []
+            grouped[name].append((i, t))
+
+        group_list = []
+        for name, variants in grouped.items():
+            min_rem = min(v[1]["remaining"] for v in variants)
+            group_list.append({"name": name, "variants": variants, "min_rem": min_rem})
         
-        for name, variants in sorted(grouped.items()):
-            col_n, col_ed, col_de = st.columns([6, 1, 1])
-            stock = max(v[1]["remaining"] for v in variants)
-            col_n.write(f"**{name}** ({stock} ks)")
-            if col_ed.button("🖌️", key=f"ed_{name}"):
+        group_list = sorted(group_list, key=lambda x: x["min_rem"])
+
+        for group in group_list:
+            name = group["name"]
+            variants = group["variants"]
+            is_expanded = name in st.session_state.expanded_info
+            eye_icon = "🕶️" if is_expanded else "👁️"
+            current_stock = max(v[1]["remaining"] for v in variants)
+
+            col_name, col_eye, col_edit, col_del = st.columns([5, 1, 1, 1])
+            col_name.write(f"{name} ({current_stock})")
+            
+            if col_eye.button(eye_icon, key=f"eye_group_{name}"):
+                if is_expanded: st.session_state.expanded_info.remove(name)
+                else: st.session_state.expanded_info.add(name)
+                st.rerun()
+
+            if col_edit.button("🖌️", key=f"edit_group_{name}"):
                 st.session_state.edit_index = variants[0][0]
                 st.rerun()
-            if col_de.button("❌", key=f"de_{name}"):
+
+            if col_del.button("❌", key=f"del_group_{name}"):
                 st.session_state.confirm_delete = name
-            
+
             if st.session_state.confirm_delete == name:
+                st.error(f"Opravdu smazat '{name}'?")
                 c1, c2 = st.columns(2)
-                if c1.button("Smazat", key=f"cy_{name}"):
+                if c1.button("Ano", key=f"conf_yes_all_{name}"):
                     st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
                     save()
                     st.session_state.confirm_delete = None
                     st.rerun()
-                if c2.button("Zrušit", key=f"cn_{name}"):
+                if c2.button("Ne", key=f"conf_no_all_{name}"):
                     st.session_state.confirm_delete = None
                     st.rerun()
 
-# --- 10. FORMULÁŘ ---
+            if is_expanded:
+                for original_idx, t_var in variants:
+                    with st.container():
+                        info_lines = []
+                        if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
+                            info_lines.append(f"➖ {', '.join(t_var['types'])}")
+                        if t_var['sizes'] and len(t_var['sizes']) < len(SIZES):
+                            info_lines.append(f"➖ {', '.join(t_var['sizes'])}")
+                        if t_var['terrain_min'] > 0.5 or t_var['terrain_max'] < 5.0:
+                            info_lines.append(f"➖ **T:** {t_var['terrain_min']}–{t_var['terrain_max']}")
+                        if t_var['difficulty_min'] > 0.5 or t_var['difficulty_max'] < 5.0:
+                            info_lines.append(f"➖ **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']}")
+                        if t_var['fav_min'] > 0:
+                            info_lines.append(f"➖ **FP:** {t_var['fav_min']}+")
+                        if t_var['attrs']:
+                            info_lines.append(f"➖ **Atributy:** {', '.join(t_var['attrs'])}")
+                        if not info_lines: st.info("Bez omezení.")
+                        else: st.markdown("> " + "  \n> ".join(info_lines))
+
+# --- 10. FORMULÁŘ PŘIDAT / UPRAVIT ---
 st.divider()
 if st.session_state.edit_index is not None:
     st.header(f"Upravit: {st.session_state.treasures[st.session_state.edit_index]['name']}")
     d = st.session_state.treasures[st.session_state.edit_index]
 else:
     st.header("Přidat nový poklad")
-    d = {"name":"", "types":[], "terrain_min":0.5, "terrain_max":5.0, "difficulty_min":0.5, "difficulty_max":5.0, "sizes":[], "fav_min":0, "attrs":[], "remaining":0}
+    d = {"name": "", "types": [], "terrain_min": 0.5, "terrain_max": 5.0, "difficulty_min": 0.5, "difficulty_max": 5.0, "sizes": [], "fav_min": 0, "attrs": [], "remaining": 0}
 
 fk = st.session_state.reset_form_key
 f_name = st.text_input("Název", value=str(d["name"]), key=f"fn_{fk}")
@@ -301,17 +376,21 @@ f_types = st.multiselect("Typy", CACHE_TYPES, default=d["types"], key=f"ft_{fk}"
 f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
 f_diff = st.slider("Obtížnost", 0.5, 5.0, (float(d["difficulty_min"]), float(d["difficulty_max"])), 0.5, key=f"fd_{fk}")
 f_terr = st.slider("Terén", 0.5, 5.0, (float(d["terrain_min"]), float(d["terrain_max"])), 0.5, key=f"fterr_{fk}")
+f_fav = st.number_input("Min. srdíčka", 0, 10000, value=int(d["fav_min"]), key=f"ff_{fk}")
+f_attrs = st.multiselect("Atributy", ATTRIBUTES, default=d["attrs"], key=f"fa_{fk}")
 f_rem = st.number_input("Zbývá kusů", 0, 1000, value=int(d["remaining"]), key=f"fr_{fk}")
 
-b1, b2 = st.columns(2)
-if b1.button("Uložit", use_container_width=True, type="primary"):
+b_col1, b_col2 = st.columns(2)
+if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
     if f_name:
-        new_data = {"name": f_name, "types": f_types, "sizes": f_sizes, "difficulty_min": f_diff[0], "difficulty_max": f_diff[1], "terrain_min": f_terr[0], "terrain_max": f_terr[1], "fav_min": d["fav_min"], "attrs": d["attrs"], "remaining": f_rem}
+        new_data = {"name": f_name, "types": f_types, "sizes": f_sizes, "difficulty_min": f_diff[0], "difficulty_max": f_diff[1], "terrain_min": f_terr[0], "terrain_max": f_terr[1], "fav_min": f_fav, "attrs": f_attrs, "remaining": f_rem}
         if st.session_state.edit_index is None: st.session_state.treasures.append(new_data)
         else: st.session_state.treasures[st.session_state.edit_index] = new_data
         save()
         st.session_state.edit_index = None
         st.rerun()
-if b2.button("Zrušit editaci", use_container_width=True):
+
+if b_col2.button("Zrušit", use_container_width=True):
     st.session_state.edit_index = None
+    st.session_state.reset_form_key += 1
     st.rerun()
