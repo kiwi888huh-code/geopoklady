@@ -281,6 +281,7 @@ if st.session_state.results:
 st.divider()
 if "expanded_info" not in st.session_state:
     st.session_state.expanded_info = set()
+# Přidaná inicializace pro výběr varianty
 if "ask_which_variant" not in st.session_state:
     st.session_state.ask_which_variant = None
 
@@ -292,6 +293,7 @@ if st.session_state.show_list:
     
     if not st.session_state.treasures:
         st.info("Tvůj seznam pokladů je prázdný.")
+        st.write("Chceš stáhnout základní balíček šablon?")
         if st.button("Ano, stáhnout balíček ✅", type="primary"):
             import_templates()
     else:
@@ -313,22 +315,24 @@ if st.session_state.show_list:
             variants = group["variants"]
             is_expanded = name in st.session_state.expanded_info
             eye_icon = "🕶️" if is_expanded else "👁️"
-            current_stock = sum(v[1]["remaining"] for v in variants)
+            current_stock = max(v[1]["remaining"] for v in variants)
 
             col_name, col_eye, col_edit, col_del = st.columns([5, 1, 1, 1])
-            col_name.write(f"{name} ({current_stock}ks)")
+            col_name.write(f"{name} ({current_stock})")
             
             if col_eye.button(eye_icon, key=f"eye_group_{name}"):
                 if is_expanded: st.session_state.expanded_info.remove(name)
                 else: st.session_state.expanded_info.add(name)
                 st.rerun()
 
+            # UPRAVENÁ LOGIKA EDITACE:
             if col_edit.button("🖌️", key=f"edit_group_{name}"):
                 if len(variants) == 1:
                     st.session_state.edit_index = variants[0][0]
                     st.session_state.reset_form_key += 1
                     st.rerun()
                 else:
+                    # Pokud je jich víc, aktivujeme dotaz
                     st.session_state.ask_which_variant = name
                     st.rerun()
 
@@ -336,39 +340,50 @@ if st.session_state.show_list:
                 st.session_state.confirm_delete = name
                 st.rerun()
 
-            # --- Podsekce: Výběr varianty k editaci ---
+            # NOVÝ BLOK: Dotaz na konkrétní variantu duplikátu
             if st.session_state.ask_which_variant == name:
-                st.info(f"Kterou variantu '{name}' upravit?")
+                st.info(f"Kterou variantu '{name}' chceš upravit?")
                 for v_idx, v_data in variants:
-                    v_label = f"Sklad: {v_data['remaining']} | T{v_data['terrain_min']} D{v_data['difficulty_min']}"
-                    if st.button(v_label, key=f"choose_v_{v_idx}", use_container_width=True):
+                    v_label = f"Sklad: {v_data['remaining']}ks | T{v_data['terrain_min']} D{v_data['difficulty_min']}"
+                    if st.button(v_label, key=f"select_edit_{v_idx}", use_container_width=True):
                         st.session_state.edit_index = v_idx
                         st.session_state.ask_which_variant = None
                         st.session_state.reset_form_key += 1
                         st.rerun()
-                if st.button("Zrušit výběr", key=f"cncl_v_{name}", use_container_width=True):
+                if st.button("Zrušit výběr", key=f"cancel_select_{name}", use_container_width=True):
                     st.session_state.ask_which_variant = None
                     st.rerun()
 
-            # --- Podsekce: Potvrzení smazání ---
             if st.session_state.confirm_delete == name:
-                st.error(f"Smazat vše '{name}'?")
+                st.error(f"Opravdu smazat '{name}'?")
                 c1, c2 = st.columns(2)
-                if c1.button("Ano", key=f"conf_yes_{name}"):
+                if c1.button("Ano", key=f"conf_yes_all_{name}"):
                     st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
                     save()
                     st.session_state.confirm_delete = None
                     st.rerun()
-                if c2.button("Ne", key=f"conf_no_{name}"):
+                if c2.button("Ne", key=f"conf_no_all_{name}"):
                     st.session_state.confirm_delete = None
                     st.rerun()
 
-            # --- Podsekce: Detailní info (Oko) ---
             if is_expanded:
-                for _, t_var in variants:
+                for original_idx, t_var in variants:
                     with st.container():
-                        st.markdown(f"> **T:** {t_var['terrain_min']}–{t_var['terrain_max']} | **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']} | **Sklad:** {t_var['remaining']}")
-                            
+                        info_lines = []
+                        if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
+                            info_lines.append(f"➖ {', '.join(t_var['types'])}")
+                        if t_var['sizes'] and len(t_var['sizes']) < len(SIZES):
+                            info_lines.append(f"➖ {', '.join(t_var['sizes'])}")
+                        if t_var['terrain_min'] > 0.5 or t_var['terrain_max'] < 5.0:
+                            info_lines.append(f"➖ **T:** {t_var['terrain_min']}–{t_var['terrain_max']}")
+                        if t_var['difficulty_min'] > 0.5 or t_var['difficulty_max'] < 5.0:
+                            info_lines.append(f"➖ **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']}")
+                        if t_var['fav_min'] > 0:
+                            info_lines.append(f"➖ **FP:** {t_var['fav_min']}+")
+                        if t_var['attrs']:
+                            info_lines.append(f"➖ **Atributy:** {', '.join(t_var['attrs'])}")
+                        if not info_lines: st.info("Bez omezení.")
+                        else: st.markdown("> " + "  \n> ".join(info_lines))
 # --- 10. FORMULÁŘ PŘIDAT / UPRAVIT ---
 st.divider()
 
