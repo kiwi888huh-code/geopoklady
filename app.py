@@ -364,16 +364,6 @@ if st.session_state.show_list:
 # --- 10. FORMULÁŘ PŘIDAT / UPRAVIT ---
 st.divider()
 
-# Pomocná proměnná pro detekci duplikátu při přidávání nového
-duplicate_found = False
-if st.session_state.edit_index is None and f_name:
-    # Hledáme, jestli už jméno existuje (ignorujeme velikost písmen)
-    for idx, item in enumerate(st.session_state.treasures):
-        if item["name"].lower() == f_name.lower():
-            duplicate_found = True
-            dup_idx = idx
-            break
-
 if st.session_state.edit_index is not None:
     st.header(f"Upravit: {st.session_state.treasures[st.session_state.edit_index]['name']}")
     d = st.session_state.treasures[st.session_state.edit_index]
@@ -410,16 +400,23 @@ if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
             st.session_state.edit_index = None
             st.rerun()
         
-        # SCÉNÁŘ B: Přidávání nového, ale jméno už existuje (Duplikát)
-        elif duplicate_found:
-            st.session_state.duplicate_pending = new_entry
-            # Tady se nic neuloží, jen vyvoláme otázku (viz níže)
-        
-        # SCÉNÁŘ C: Čisté přidání nového
+        # SCÉNÁŘ B: Kontrola duplikátu před přidáním nového
         else:
-            st.session_state.treasures.append(new_entry)
-            save()
-            st.rerun()
+            dup_idx = None
+            for idx, item in enumerate(st.session_state.treasures):
+                if item["name"].lower() == f_name.lower():
+                    dup_idx = idx
+                    break
+            
+            if dup_idx is not None:
+                # Našli jsme shodu, vyvoláme dialog
+                st.session_state.duplicate_pending = new_entry
+                st.rerun()
+            else:
+                # Žádná shoda, rovnou uložíme
+                st.session_state.treasures.append(new_entry)
+                save()
+                st.rerun()
 
 if b_col2.button("Zrušit", use_container_width=True):
     st.session_state.edit_index = None
@@ -427,23 +424,23 @@ if b_col2.button("Zrušit", use_container_width=True):
     if "duplicate_pending" in st.session_state: del st.session_state.duplicate_pending
     st.rerun()
 
-# --- ŘEŠENÍ DUPLIKÁTŮ ---
+# --- ŘEŠENÍ DUPLIKÁTŮ (Dialog pod formulářem) ---
 if "duplicate_pending" in st.session_state:
-    st.warning(f"Poklad se jménem **{f_name}** už v seznamu existuje. Co chceš udělat?")
+    pending = st.session_state.duplicate_pending
+    st.warning(f"Poklad se jménem **{pending['name']}** už v seznamu existuje. Co chceš udělat?")
     d_col1, d_col2, d_col3 = st.columns(3)
     
     if d_col1.button("Upravit stávající", use_container_width=True):
-        # Najdeme index toho stávajícího a přepíšeme ho
         for idx, item in enumerate(st.session_state.treasures):
-            if item["name"].lower() == f_name.lower():
-                st.session_state.treasures[idx] = st.session_state.duplicate_pending
+            if item["name"].lower() == pending["name"].lower():
+                st.session_state.treasures[idx] = pending
                 break
         save()
         del st.session_state.duplicate_pending
         st.rerun()
         
     if d_col2.button("Přidat jako další duplikát", use_container_width=True):
-        st.session_state.treasures.append(st.session_state.duplicate_pending)
+        st.session_state.treasures.append(pending)
         save()
         del st.session_state.duplicate_pending
         st.rerun()
