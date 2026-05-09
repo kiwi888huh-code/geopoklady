@@ -336,21 +336,21 @@ if st.session_state.show_list:
                     st.session_state.ask_which_variant = name
                     st.rerun()
 
-          # LOGIKA MAZÁNÍ (Upraveno s unikátními klíči)
+# --- OPRAVENÁ LOGIKA MAZÁNÍ A EDITACE ---
+            
+            # 1. Tlačítko pro smazání (X)
             if col_del.button("❌", key=f"del_group_{name}"):
                 if len(variants) == 1:
                     st.session_state.confirm_delete = name
-                    st.rerun()
                 else:
                     st.session_state.ask_which_delete = name
-                    st.rerun()
+                st.rerun()
 
-            # SCÉNÁŘ 1: Výběr konkrétní varianty ke smazání
+            # 2. SCÉNÁŘ: Mazání u duplikátů (výběr varianty)
             if st.session_state.get("ask_which_delete") == name:
                 st.warning(f"Kterou variantu '{name}' chceš smazat?")
                 for v_idx, v_data in variants:
                     v_label = f"Smazat: {', '.join(v_data['types']) if v_data['types'] else 'Všechny typy'}"
-                    # Klíč obsahuje v_idx, což zaručí unikátnost
                     if st.button(v_label, key=f"select_del_btn_{v_idx}", use_container_width=True):
                         st.session_state.treasures.pop(v_idx)
                         save()
@@ -358,7 +358,6 @@ if st.session_state.show_list:
                         st.rerun()
                 
                 st.divider()
-                # Změněn klíč na del_complete_all_...
                 if st.button(f"🗑️ SMAZAT ÚPLNĚ VŠE ({name})", key=f"del_complete_all_{name}", type="primary", use_container_width=True):
                     st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
                     save()
@@ -369,11 +368,10 @@ if st.session_state.show_list:
                     st.session_state.ask_which_delete = None
                     st.rerun()
 
-            # SCÉNÁŘ 2: Klasické potvrzení smazání (u jedné jediné varianty)
+            # 3. SCÉNÁŘ: Mazání u jedné položky (potvrzení Ano/Ne)
             if st.session_state.confirm_delete == name:
                 st.error(f"Opravdu smazat '{name}'?")
                 c1, c2 = st.columns(2)
-                # Změněny klíče na single_conf_...
                 if c1.button("Ano", key=f"single_conf_yes_{name}", use_container_width=True):
                     st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
                     save()
@@ -383,16 +381,11 @@ if st.session_state.show_list:
                     st.session_state.confirm_delete = None
                     st.rerun()
 
-# NOVÝ BLOK: Dotaz na konkrétní variantu duplikátu (podle typu cache)
+            # 4. SCÉNÁŘ: Výběr varianty pro EDITACI
             if st.session_state.ask_which_variant == name:
                 st.info(f"Kterou variantu '{name}' chceš upravit?")
                 for v_idx, v_data in variants:
-                    # Vytvoření popisku čistě na základě typů keší
-                    if v_data['types']:
-                        v_label = f"Typy: {', '.join(v_data['types'])}"
-                    else:
-                        v_label = "Všechny typy (univerzální)"
-                    
+                    v_label = f"Typy: {', '.join(v_data['types'])}" if v_data['types'] else "Všechny typy (univerzální)"
                     if st.button(v_label, key=f"select_edit_{v_idx}", use_container_width=True):
                         st.session_state.edit_index = v_idx
                         st.session_state.ask_which_variant = None
@@ -401,18 +394,6 @@ if st.session_state.show_list:
                 
                 if st.button("Zrušit výběr", key=f"cancel_select_{name}", use_container_width=True):
                     st.session_state.ask_which_variant = None
-                    st.rerun()
-
-            if st.session_state.confirm_delete == name:
-                st.error(f"Opravdu smazat '{name}'?")
-                c1, c2 = st.columns(2)
-                if c1.button("Ano", key=f"conf_yes_all_{name}"):
-                    st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
-                    save()
-                    st.session_state.confirm_delete = None
-                    st.rerun()
-                if c2.button("Ne", key=f"conf_no_all_{name}"):
-                    st.session_state.confirm_delete = None
                     st.rerun()
 
             if is_expanded:
