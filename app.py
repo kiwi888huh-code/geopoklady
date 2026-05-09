@@ -288,7 +288,6 @@ if st.button("Zobrazit / skrýt seznam pokladů"):
 if st.session_state.show_list:
     st.header("Seznam pokladů")
     
-    # NOVÉ: Kontrola prázdného seznamu a výzva k importu
     if not st.session_state.treasures:
         st.info("Tvůj seznam pokladů je prázdný.")
         st.write("Chceš stáhnout základní balíček šablon?")
@@ -323,14 +322,14 @@ if st.session_state.show_list:
                 else: st.session_state.expanded_info.add(name)
                 st.rerun()
 
-        if col_edit.button("🖌️", key=f"edit_group_{name}"):
+            if col_edit.button("🖌️", key=f"edit_group_{name}"):
                 st.session_state.edit_index = variants[0][0]
-                # PŘIDÁNO: Změna klíče vynutí přepsání formuláře daty z d
-                st.session_state.reset_form_key += 1 
+                st.session_state.reset_form_key += 1  # Toto zajistí načtení dat do formuláře
                 st.rerun()
 
             if col_del.button("❌", key=f"del_group_{name}"):
                 st.session_state.confirm_delete = name
+                st.rerun()
 
             if st.session_state.confirm_delete == name:
                 st.error(f"Opravdu smazat '{name}'?")
@@ -362,7 +361,7 @@ if st.session_state.show_list:
                             info_lines.append(f"➖ **Atributy:** {', '.join(t_var['attrs'])}")
                         if not info_lines: st.info("Bez omezení.")
                         else: st.markdown("> " + "  \n> ".join(info_lines))
-
+                            
 # --- 10. FORMULÁŘ PŘIDAT / UPRAVIT ---
 st.divider()
 
