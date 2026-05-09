@@ -260,24 +260,31 @@ if st.session_state.results:
         if st.session_state.open_detail_result == i:
             with st.container():
                 info_lines = []
+                # Obalení typů do HTML spanu proti zalamování
                 if t['types'] and len(t['types']) < len(CACHE_TYPES):
-                    safe_types = [txt.replace(" ", "\u00A0") for txt in t['types']]
+                    safe_types = [f'<span style="white-space: nowrap;">{txt}</span>' for txt in t['types']]
                     info_lines.append(f"➖ {', '.join(safe_types)}")
+                
                 if t['sizes'] and len(t['sizes']) < len(SIZES):
                     info_lines.append(f"➖ {', '.join(t['sizes'])}")
+                
                 if t['terrain_min'] > 0.5 or t['terrain_max'] < 5.0:
                     info_lines.append(f"➖ **T:** {t['terrain_min']}–{t['terrain_max']}")
+                
                 if t['difficulty_min'] > 0.5 or t['difficulty_max'] < 5.0:
                     info_lines.append(f"➖ **D:** {t['difficulty_min']}–{t['difficulty_max']}")
+                
                 if t['fav_min'] > 0:
                     info_lines.append(f"➖ **FP:** {t['fav_min']}+")
+                
                 if t['attrs']:
                     info_lines.append(f"➖ **Atributy:** {', '.join(t['attrs'])}")
                 
                 if not info_lines:
                     st.info("Bez omezení.")
                 else:
-                    st.markdown("> " + "  \n> ".join(info_lines))
+                    # Důležité: přidáno unsafe_allow_html=True
+                    st.markdown("> " + "  \n> ".join(info_lines), unsafe_allow_html=True)
         
         if st.session_state.confirm_use == i:
             st.warning(f"Opravdu použít {t['name']}?")
@@ -406,22 +413,31 @@ if st.session_state.show_list:
                 for original_idx, t_var in variants:
                     with st.container():
                         info_lines = []
+                        # Obalení typů do HTML spanu proti zalamování
                         if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
-                            safe_types_var = [txt.replace(" ", "\u00A0") for txt in t_var['types']]
+                            safe_types_var = [f'<span style="white-space: nowrap;">{txt}</span>' for txt in t_var['types']]
                             info_lines.append(f"➖ {', '.join(safe_types_var)}")
                         
                         if t_var['sizes'] and len(t_var['sizes']) < len(SIZES):
                             info_lines.append(f"➖ {', '.join(t_var['sizes'])}")
+                        
                         if t_var['terrain_min'] > 0.5 or t_var['terrain_max'] < 5.0:
                             info_lines.append(f"➖ **T:** {t_var['terrain_min']}–{t_var['terrain_max']}")
+                        
                         if t_var['difficulty_min'] > 0.5 or t_var['difficulty_max'] < 5.0:
                             info_lines.append(f"➖ **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']}")
+                        
                         if t_var['fav_min'] > 0:
                             info_lines.append(f"➖ **FP:** {t_var['fav_min']}+")
+                        
                         if t_var['attrs']:
                             info_lines.append(f"➖ **Atributy:** {', '.join(t_var['attrs'])}")
-                        if not info_lines: st.info("Bez omezení.")
-                        else: st.markdown("> " + "  \n> ".join(info_lines))
+                        
+                        if not info_lines: 
+                            st.info("Bez omezení.")
+                        else: 
+                            # Důležité: přidáno unsafe_allow_html=True
+                            st.markdown("> " + "  \n> ".join(info_lines), unsafe_allow_html=True)
 
 # --- 10. FORMULÁŘ PŘIDAT / UPRAVIT ---
 st.divider()
