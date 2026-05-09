@@ -255,12 +255,49 @@ if st.session_state.results:
         r_col2.write(f"Zbývá: {t['remaining']}")
         if r_col3.button("ℹ️", key=f"res_i_{i}"):
             st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
+            st.rerun()
         if r_col4.button("✅", key=f"use_{i}"):
             st.session_state.confirm_use = i
         
+        # --- SJEDNOCENÝ STYL INFORMAČNÍHO BLOKU ---
         if st.session_state.open_detail_result == i:
-            st.info(f"T {t['terrain_min']}-{t['terrain_max']} | D {t['difficulty_min']}-{t['difficulty_max']} | FP {t['fav_min']}+")
+            with st.container():
+                info_lines = []
+                # Filtrujeme jen to, co není "univerzální"
+                if t['types'] and len(t['types']) < len(CACHE_TYPES):
+                    info_lines.append(f"➖ {', '.join(t['types'])}")
+                if t['sizes'] and len(t['sizes']) < len(SIZES):
+                    info_lines.append(f"➖ {', '.join(t['sizes'])}")
+                if t['terrain_min'] > 0.5 or t['terrain_max'] < 5.0:
+                    info_lines.append(f"➖ **T:** {t['terrain_min']}–{t['terrain_max']}")
+                if t['difficulty_min'] > 0.5 or t['difficulty_max'] < 5.0:
+                    info_lines.append(f"➖ **D:** {t['difficulty_min']}–{t['difficulty_max']}")
+                if t['fav_min'] > 0:
+                    info_lines.append(f"➖ **FP:** {t['fav_min']}+")
+                if t['attrs']:
+                    info_lines.append(f"➖ **Atributy:** {', '.join(t['attrs'])}")
+                
+                if not info_lines:
+                    st.info("Bez omezení.")
+                else:
+                    # Použití markdownu se odsazením (stejně jako u očička)
+                    st.markdown("> " + "  \n> ".join(info_lines))
         
+        if st.session_state.confirm_use == i:
+            st.warning(f"Opravdu použít {t['name']}?")
+            conf_col1, conf_col2 = st.columns(2)
+            if conf_col1.button("Potvrdit ✅", key=f"y_{i}", use_container_width=True):
+                target_name = t['name']
+                for idx, item in enumerate(st.session_state.treasures):
+                    if item["name"] == target_name:
+                        st.session_state.treasures[idx]["remaining"] = max(0, item["remaining"] - 1)
+                save()
+                st.session_state.confirm_use = None
+                st.session_state.results = []
+                st.rerun()
+            if conf_col2.button("Zrušit ❌", key=f"n_{i}", use_container_width=True):
+                st.session_state.confirm_use = None
+                st.rerun()
         if st.session_state.confirm_use == i:
             st.warning(f"Opravdu použít {t['name']}?")
             conf_col1, conf_col2 = st.columns(2)
