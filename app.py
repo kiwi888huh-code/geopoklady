@@ -153,6 +153,23 @@ def save():
     except Exception as e: 
         st.error(f"Chyba při ukládání: {e}")
 
+def delete_account():
+    try:
+        # Smaže všechny řádky v tabulce, které patří danému uživateli
+        supabase.table("treasures").delete().eq("user_id", st.session_state["username"]).execute()
+        
+        # Vyčistíme lokální data a odhlásíme
+        localS.deleteItem("gc_user")
+        st.session_state["username"] = None
+        st.session_state["logged_in"] = False
+        if "treasures" in st.session_state: 
+            del st.session_state["treasures"]
+        st.query_params.clear()
+        st.success("Účet a všechna data byla smazána.")
+        st.rerun()
+    except Exception as e:
+        st.error(f"Chyba při mazání účtu: {e}")
+
 # --- 6. SESSION STATE ---
 if "treasures" not in st.session_state:
     st.session_state.treasures = load_data()
@@ -167,13 +184,34 @@ for key, val in {"show_list": False, "open_detail": None, "open_detail_result": 
 # --- 7. SIDEBAR ---
 with st.sidebar:
     st.write(f"Uživatel: **{st.session_state['username']}**")
-    if st.button("Odhlásit se"):
+    
+    # Standardní odhlášení
+    if st.button("Odhlásit se", use_container_width=True):
         localS.deleteItem("gc_user")
         st.session_state["username"] = None
         st.session_state["logged_in"] = False
         if "treasures" in st.session_state: del st.session_state["treasures"]
         st.query_params.clear()
         st.rerun()
+    
+    st.divider()
+    
+    # Sekce pro smazání účtu
+    if "confirm_delete_account" not in st.session_state:
+        st.session_state.confirm_delete_account = False
+        
+    if not st.session_state.confirm_delete_account:
+        if st.button("Smazat účet 🗑️", use_container_width=True, type="secondary"):
+            st.session_state.confirm_delete_account = True
+            st.rerun()
+    else:
+        st.warning("Opravdu smazat účet? Tato akce je nevratná a smaže všechny tvé poklady!")
+        col_del1, col_del2 = st.columns(2)
+        if col_del1.button("ANO, SMAZAT", type="primary", use_container_width=True):
+            delete_account()
+        if col_del2.button("Zrušit", use_container_width=True):
+            st.session_state.confirm_delete_account = False
+            st.rerun()
 
 # --- 8. HLAVNÍ OBSAH (ZADEJ KEŠ) ---
 st.title("Geocaching – výběr pokladů")
