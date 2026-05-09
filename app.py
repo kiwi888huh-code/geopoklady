@@ -340,16 +340,26 @@ if st.session_state.show_list:
                 st.session_state.confirm_delete = name
                 st.rerun()
 
-            # NOVÝ BLOK: Dotaz na konkrétní variantu duplikátu
+# NOVÝ BLOK: Dotaz na konkrétní variantu duplikátu (podle typu cache)
             if st.session_state.ask_which_variant == name:
                 st.info(f"Kterou variantu '{name}' chceš upravit?")
                 for v_idx, v_data in variants:
-                    v_label = f"Sklad: {v_data['remaining']}ks | T{v_data['terrain_min']} D{v_data['difficulty_min']}"
+                    # Vytvoření popisku na základě typů keší
+                    if v_data['types']:
+                        # Pokud má varianta vybrané typy, vypíšeme je (zkráceně bez emotikonů pro čistotu, nebo s nimi)
+                        v_label = f"Pro typy: {', '.join(v_data['types'])}"
+                    else:
+                        v_label = "Pro všechny typy (univerzální)"
+                    
+                    # Přidáme informaci o počtu kusů na konec pro lepší orientaci
+                    v_label += f" | Sklad: {v_data['remaining']}ks"
+
                     if st.button(v_label, key=f"select_edit_{v_idx}", use_container_width=True):
                         st.session_state.edit_index = v_idx
                         st.session_state.ask_which_variant = None
                         st.session_state.reset_form_key += 1
                         st.rerun()
+                
                 if st.button("Zrušit výběr", key=f"cancel_select_{name}", use_container_width=True):
                     st.session_state.ask_which_variant = None
                     st.rerun()
