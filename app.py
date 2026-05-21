@@ -528,3 +528,16 @@ if "duplicate_pending" in st.session_state:
     if d_col3.button("Zrušit", key="dup_cancel", use_container_width=True):
         del st.session_state.duplicate_pending
         st.rerun()
+
+
+# --- AUTOMATICKÉ PROBOUZENÍ DATABÁZE (CRON) ---
+# Kontrola, zda v URL adrese přišel požadavek na ping (např. tvá-app.streamlit.app/?ping=true)
+if st.query_params.get("ping") == "true":
+    try:
+        # Provede se bleskový a nenáročný dotaz do Supabase
+        supabase.table("users").select("count", count="exact").limit(1).execute()
+        st.write("Database pinged successfully!")
+    except Exception as e:
+        st.write(f"Ping failed: {e}")
+    # Zastaví vykreslování zbytku aplikace pro robota, aby se neplýtvalo pamětí
+    st.stop()
