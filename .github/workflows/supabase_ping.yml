@@ -1,5 +1,4 @@
 name: Probouzení Supabase Databáze
-
 on:
   schedule:
     - cron: '0 4 */3 * *'
