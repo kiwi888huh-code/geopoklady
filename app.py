@@ -251,7 +251,7 @@ if st.session_state.results:
         r_col1, r_col2, r_col3, r_col4 = st.columns([4, 2, 1, 1])
         
         note_val = t.get('note', '').strip()
-        display_name = f"{t['name']}       🗞️ {note_val}" if note_val else t['name']
+        display_name = f"{t['name']} "   "🗞️ {note_val}" if note_val else t['name']
         r_col1.write(display_name)
         
         r_col2.write(f"Zbývá: {t['remaining']}")
