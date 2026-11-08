@@ -251,7 +251,7 @@ if st.session_state.results:
         r_col1, r_col2, r_col3, r_col4 = st.columns([4, 2, 1, 1])
         
         note_val = t.get('note', '').strip()
-        display_name = f"{t['name']} — 🗞️: {note_val}" if note_val else t['name']
+        display_name = f"{t['name']}       🗞️ {note_val}" if note_val else t['name']
         r_col1.write(display_name)
         
         r_col2.write(f"Zbývá: {t['remaining']}")
@@ -352,7 +352,7 @@ if st.session_state.show_list:
             if len(variants) == 1:
                 single_note = variants[0][1].get('note', '').strip()
                 if single_note:
-                    notes_str = f" — 🗞️: {single_note}"
+                    notes_str = f"      🗞️ {single_note}"
             
             col_name.write(f"{name}{notes_str} ({current_stock})")
             
@@ -470,7 +470,7 @@ else:
 
 fk = st.session_state.reset_form_key
 f_name = st.text_input("Název", value=str(d["name"]), key=f"fn_{fk}")
-f_note = st.text_area("Poznámka / Popis", value=str(d.get("note", "")), key=f"fnote_{fk}")
+f_note = st.text_input("Poznámka", value=str(d.get("note", "")), key=f"fnote_{fk}")
 f_types = st.multiselect("Typy", CACHE_TYPES, default=d["types"], key=f"ft_{fk}")
 f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
 f_diff = st.slider("Obtížnost", 0.5, 5.0, (float(d["difficulty_min"]), float(d["difficulty_max"])), 0.5, key=f"fd_{fk}")
