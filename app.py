@@ -250,12 +250,13 @@ if st.session_state.results:
     for i, t in st.session_state.results:
         r_col1, r_col2, r_col3, r_col4 = st.columns([4, 2, 1, 1])
         
-        # Zobrazení poznámky u výsledků (pouze pokud existuje a není prázdná)
         note_val = t.get('note', '').strip()
         display_name = f"{t['name']} — 🗞️: {note_val}" if note_val else t['name']
         r_col1.write(display_name)
         
         r_col2.write(f"Zbývá: {t['remaining']}")
+        if r_col3.button("ℹ️", key=f"res_i_{i}```"): # wait, let's make sure key doesn't have markdown
+            pass
         if r_col3.button("ℹ️", key=f"res_i_{i}"):
             st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
             st.rerun()
@@ -347,7 +348,6 @@ if st.session_state.show_list:
 
             col_name, col_eye, col_edit, col_del = st.columns([5, 1, 1, 1])
             
-            # Zobrazení poznámky v hlavním seznamu (pokud má jednotná variantní položka poznámku)
             notes_str = ""
             if len(variants) == 1:
                 single_note = variants[0][1].get('note', '').strip()
@@ -375,4 +375,183 @@ if st.session_state.show_list:
                     st.session_state.confirm_delete = name
                 else:
                     st.session_state.ask_which_delete = name
-                st
+                st.rerun()
+
+            if st.session_state.get("ask_which_delete") == name:
+                st.warning(f"Kterou variantu '{name}' chceš smazat?")
+                for v_idx, v_data in variants:
+                    v_label = f"Smazat: {', '.join(v_data['types']) if v_data['types'] else 'Všechny typy'}"
+                    if st.button(v_label, key=f"select_del_btn_{v_idx}", use_container_width=True):
+                        st.session_state.treasures.pop(v_idx)
+                        save()
+                        st.session_state.ask_which_delete = None
+                        st.rerun()
+                st.divider()
+                if st.button(f"🗑️ SMAZAT ÚPLNĚ VŠE ({name})", key=f"del_complete_all_{name}", type="primary", use_container_width=True):
+                    st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
+                    save()
+                    st.session_state.ask_which_delete = None
+                    st.rerun()
+                if st.button("Zpět", key=f"cancel_del_sel_{name}", use_container_width=True):
+                    st.session_state.ask_which_delete = None
+                    st.rerun()
+
+            if st.session_state.confirm_delete == name:
+                st.error(f"Opravdu smazat '{name}'?")
+                c1, c2 = st.columns(2)
+                if c1.button("Ano", key=f"single_conf_yes_{name}", use_container_width=True):
+                    st.session_state.treasures = [t for t in st.session_state.treasures if t["name"] != name]
+                    save()
+                    st.session_state.confirm_delete = None
+                    st.rerun()
+                if c2.button("Ne", key=f"single_conf_no_{name}", use_container_width=True):
+                    st.session_state.confirm_delete = None
+                    st.rerun()
+
+            if st.session_state.ask_which_variant == name:
+                st.info(f"Kterou variantu '{name}' chceš upravit?")
+                for v_idx, v_data in variants:
+                    v_label = f"Typy: {', '.join(v_data['types'])}" if v_data['types'] else "Všechny typy (univerzální)"
+                    if st.button(v_label, key=f"select_edit_{v_idx}", use_container_width=True):
+                        st.session_state.edit_index = v_idx
+                        st.session_state.ask_which_variant = None
+                        st.session_state.reset_form_key += 1
+                        st.rerun()
+                if st.button("Zrušit výběr", key=f"cancel_select_{name}", use_container_width=True):
+                    st.session_state.ask_which_variant = None
+                    st.rerun()
+
+            if is_expanded:
+                for original_idx, t_var in variants:
+                    with st.container():
+                        info_lines = []
+                        
+                        var_note = t_var.get('note', '').strip()
+                        if var_note:
+                            info_lines.append(f"➖ **Poznámka:** {var_note}")
+
+                        if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
+                            safe_types_var = [f'<span style="white-space: nowrap;">{txt}</span>' for txt in t_var['types']]
+                            info_lines.append(f"➖ {', '.join(safe_types_var)}")
+                        
+                        if t_var['sizes'] and len(t_var['sizes']) < len(SIZES):
+                            info_lines.append(f"➖ {', '.join(t_var['sizes'])}")
+                        
+                        if t_var['terrain_min'] > 0.5 or t_var['terrain_max'] < 5.0:
+                            info_lines.append(f"➖ **T:** {t_var['terrain_min']}–{t_var['terrain_max']}")
+                        
+                        if t_var['difficulty_min'] > 0.5 or t_var['difficulty_max'] < 5.0:
+                            info_lines.append(f"➖ **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']}")
+                        
+                        if t_var['fav_min'] > 0:
+                            info_lines.append(f"➖ **FP:** {t_var['fav_min']}+")
+                        
+                        if t_var['attrs']:
+                            info_lines.append(f"➖ **Atributy:** {', '.join(t_var['attrs'])}")
+                        
+                        if not info_lines: 
+                            st.info("Bez omezení.")
+                        else: 
+                            st.markdown("> " + "  \n> ".join(info_lines), unsafe_allow_html=True)
+
+# --- 10. FORMULÁŘ PŘIDAT / UPRAVIT ---
+st.divider()
+
+if st.session_state.edit_index is not None:
+    if st.session_state.edit_index < len(st.session_state.treasures):
+        st.header(f"Upravit: {st.session_state.treasures[st.session_state.edit_index]['name']}")
+        d = st.session_state.treasures[st.session_state.edit_index]
+    else:
+        st.session_state.edit_index = None
+        st.rerun()
+else:
+    st.header("Přidat nový poklad")
+    d = {"name": "", "note": "", "types": [], "terrain_min": 0.5, "terrain_max": 5.0, "difficulty_min": 0.5, "difficulty_max": 5.0, "sizes": [], "fav_min": 0, "attrs": [], "remaining": 0}
+
+fk = st.session_state.reset_form_key
+f_name = st.text_input("Název", value=str(d["name"]), key=f"fn_{fk}")
+f_note = st.text_area("Poznámka / Popis", value=str(d.get("note", "")), key=f"fnote_{fk}")
+f_types = st.multiselect("Typy", CACHE_TYPES, default=d["types"], key=f"ft_{fk}")
+f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
+f_diff = st.slider("Obtížnost", 0.5, 5.0, (float(d["difficulty_min"]), float(d["difficulty_max"])), 0.5, key=f"fd_{fk}")
+f_terr = st.slider("Terén", 0.5, 5.0, (float(d["terrain_min"]), float(d["terrain_max"])), 0.5, key=f"fterr_{fk}")
+f_fav = st.number_input("Min. srdíčka", 0, 10000, value=int(d["fav_min"]), key=f"ff_{fk}")
+f_attrs = st.multiselect("Atributy", ATTRIBUTES, default=d["attrs"], key=f"fa_{fk}")
+f_rem = st.number_input("Zbývá kusů", 0, 1000, value=int(d["remaining"]), key=f"fr_{fk}")
+
+b_col1, b_col2 = st.columns(2)
+
+if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
+    if f_name:
+        new_entry = {
+            "name": f_name, 
+            "note": f_note.strip() if f_note else "", 
+            "types": f_types, 
+            "sizes": f_sizes, 
+            "difficulty_min": float(f_diff[0]), "difficulty_max": float(f_diff[1]), 
+            "terrain_min": float(f_terr[0]), "terrain_max": float(f_terr[1]), 
+            "fav_min": int(f_fav), 
+            "attrs": f_attrs, 
+            "remaining": int(f_rem)
+        }
+
+        if st.session_state.edit_index is not None:
+            st.session_state.treasures[st.session_state.edit_index] = new_entry
+            save()
+            st.session_state.edit_index = None
+            st.rerun()
+        else:
+            dup_idx = None
+            for idx, item in enumerate(st.session_state.treasures):
+                if item["name"].lower() == f_name.lower():
+                    dup_idx = idx
+                    break
+            
+            if dup_idx is not None:
+                st.session_state.duplicate_pending = new_entry
+                st.rerun()
+            else:
+                st.session_state.treasures.append(new_entry)
+                save()
+                st.rerun()
+
+if b_col2.button("Zrušit", use_container_width=True):
+    st.session_state.edit_index = None
+    st.session_state.reset_form_key += 1
+    if "duplicate_pending" in st.session_state: 
+        del st.session_state.duplicate_pending
+    st.rerun()
+
+if "duplicate_pending" in st.session_state:
+    pending = st.session_state.duplicate_pending
+    st.warning(f"Poklad se jménem **{pending['name']}** už v seznamu existuje. Co chceš udělat?")
+    d_col1, d_col2, d_col3 = st.columns(3)
+    
+    if d_col1.button("Upravit stávající", key="dup_update", use_container_width=True):
+        for idx, item in enumerate(st.session_state.treasures):
+            if item["name"].lower() == pending["name"].lower():
+                st.session_state.treasures[idx] = pending
+                break
+        save()
+        del st.session_state.duplicate_pending
+        st.rerun()
+        
+    if d_col2.button("Přidat jako další duplikát", key="dup_add", use_container_width=True):
+        st.session_state.treasures.append(pending)
+        save()
+        del st.session_state.duplicate_pending
+        st.rerun()
+        
+    if d_col3.button("Zrušit", key="dup_cancel", use_container_width=True):
+        del st.session_state.duplicate_pending
+        st.rerun()
+
+
+# --- AUTOMATICKÉ PROBOUZENÍ DATABÁZE (CRON) ---
+if st.query_params.get("ping") == "true":
+    try:
+        supabase.table("users").select("count", count="exact").limit(1).execute()
+        st.write("Database pinged successfully!")
+    except Exception as e:
+        st.write(f"Ping failed: {e}")
+    st.stop()
