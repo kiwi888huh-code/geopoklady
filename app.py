@@ -103,6 +103,7 @@ def load_data():
             if t.get("name") == "_INITIAL_STATE_": continue
             clean.append({
                 "name": str(t.get("name", "")),
+                "note": str(t.get("note", "")), # PŘIDÁNO: Načtení poznámky
                 "types": t.get("types") or [],
                 "sizes": t.get("sizes") or [],
                 "attrs": t.get("attrs") or [],
@@ -248,7 +249,11 @@ if st.session_state.results:
     st.subheader("Vhodné poklady:")
     for i, t in st.session_state.results:
         r_col1, r_col2, r_col3, r_col4 = st.columns([4, 2, 1, 1])
-        r_col1.write(t["name"])
+        
+        # PŘIDÁNO: Zobrazení poznámky v názvu výsledku, pokud existuje
+        display_name = f"{t['name']} — 🗞️: {t['note']}" if t.get('note') and t['note'].strip() else t['name']
+        r_col1.write(display_name)
+        
         r_col2.write(f"Zbývá: {t['remaining']}")
         if r_col3.button("ℹ️", key=f"res_i_{i}"):
             st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
@@ -260,7 +265,6 @@ if st.session_state.results:
         if st.session_state.open_detail_result == i:
             with st.container():
                 info_lines = []
-                # Obalení typů do HTML spanu proti zalamování
                 if t['types'] and len(t['types']) < len(CACHE_TYPES):
                     safe_types = [f'<span style="white-space: nowrap;">{txt}</span>' for txt in t['types']]
                     info_lines.append(f"➖ {', '.join(safe_types)}")
@@ -283,7 +287,6 @@ if st.session_state.results:
                 if not info_lines:
                     st.info("Bez omezení.")
                 else:
-                    # Důležité: přidáno unsafe_allow_html=True
                     st.markdown("> " + "  \n> ".join(info_lines), unsafe_allow_html=True)
         
         if st.session_state.confirm_use == i:
@@ -342,7 +345,10 @@ if st.session_state.show_list:
             current_stock = max(v[1]["remaining"] for v in variants)
 
             col_name, col_eye, col_edit, col_del = st.columns([5, 1, 1, 1])
-            col_name.write(f"{name} ({current_stock})")
+            
+            # PŘIDÁNO: Zobrazení poznámky v hlavním seznamu pokladů (pokud existuje alespoň u jedné varianty)
+            notes_str = f" — 🗞️: {variants[0][1]['note']}" if len(variants) == 1 and variants[0][1].get('note') else ""
+            col_name.write(f"{name}{notes_str} ({current_stock})")
             
             if col_eye.button(eye_icon, key=f"eye_group_{name}"):
                 if is_expanded: st.session_state.expanded_info.remove(name)
@@ -413,7 +419,11 @@ if st.session_state.show_list:
                 for original_idx, t_var in variants:
                     with st.container():
                         info_lines = []
-                        # Obalení typů do HTML spanu proti zalamování
+                        
+                        # PŘIDÁNO: Zobrazení poznámky v rozbaleném detailu varianty
+                        if t_var.get('note'):
+                            info_lines.append(f"➖ **Poznámka:** {t_var['note']}")
+
                         if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
                             safe_types_var = [f'<span style="white-space: nowrap;">{txt}</span>' for txt in t_var['types']]
                             info_lines.append(f"➖ {', '.join(safe_types_var)}")
@@ -436,7 +446,6 @@ if st.session_state.show_list:
                         if not info_lines: 
                             st.info("Bez omezení.")
                         else: 
-                            # Důležité: přidáno unsafe_allow_html=True
                             st.markdown("> " + "  \n> ".join(info_lines), unsafe_allow_html=True)
 
 # --- 10. FORMULÁŘ PŘIDAT / UPRAVIT ---
@@ -451,10 +460,11 @@ if st.session_state.edit_index is not None:
         st.rerun()
 else:
     st.header("Přidat nový poklad")
-    d = {"name": "", "types": [], "terrain_min": 0.5, "terrain_max": 5.0, "difficulty_min": 0.5, "difficulty_max": 5.0, "sizes": [], "fav_min": 0, "attrs": [], "remaining": 0}
+    d = {"name": "", "note": "", "types": [], "terrain_min": 0.5, "terrain_max": 5.0, "difficulty_min": 0.5, "difficulty_max": 5.0, "sizes": [], "fav_min": 0, "attrs": [], "remaining": 0}
 
 fk = st.session_state.reset_form_key
 f_name = st.text_input("Název", value=str(d["name"]), key=f"fn_{fk}")
+f_note = st.text_area("Poznámka / Popis", value=str(d.get("note", "")), key=f"fnote_{fk}") # PŘIDÁNO: Textové pole pro poznámku
 f_types = st.multiselect("Typy", CACHE_TYPES, default=d["types"], key=f"ft_{fk}")
 f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
 f_diff = st.slider("Obtížnost", 0.5, 5.0, (float(d["difficulty_min"]), float(d["difficulty_max"])), 0.5, key=f"fd_{fk}")
@@ -469,6 +479,7 @@ if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
     if f_name:
         new_entry = {
             "name": f_name, 
+            "note": f_note, # PŘIDÁNO: Uložení poznámky do objektu
             "types": f_types, 
             "sizes": f_sizes, 
             "difficulty_min": float(f_diff[0]), "difficulty_max": float(f_diff[1]), 
@@ -531,13 +542,10 @@ if "duplicate_pending" in st.session_state:
 
 
 # --- AUTOMATICKÉ PROBOUZENÍ DATABÁZE (CRON) ---
-# Kontrola, zda v URL adrese přišel požadavek na ping (např. tvá-app.streamlit.app/?ping=true)
 if st.query_params.get("ping") == "true":
     try:
-        # Provede se bleskový a nenáročný dotaz do Supabase
         supabase.table("users").select("count", count="exact").limit(1).execute()
         st.write("Database pinged successfully!")
     except Exception as e:
         st.write(f"Ping failed: {e}")
-    # Zastaví vykreslování zbytku aplikace pro robota, aby se neplýtvalo pamětí
     st.stop()
