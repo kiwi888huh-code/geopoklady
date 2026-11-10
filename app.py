@@ -475,9 +475,15 @@ f_types = st.multiselect("Typy", CACHE_TYPES, default=d["types"], key=f"ft_{fk}"
 f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
 f_diff = st.slider("Obtížnost", 0.5, 5.0, (float(d["difficulty_min"]), float(d["difficulty_max"])), 0.5, key=f"fd_{fk}")
 f_terr = st.slider("Terén", 0.5, 5.0, (float(d["terrain_min"]), float(d["terrain_max"])), 0.5, key=f"fterr_{fk}")
-f_fav = st.number_input("Min. srdíčka", 0, 10000, value=int(d["fav_min"]), key=f"ff_{fk}")
+# ATRIBUTY NAD SEKCI SARDÍČEK A ZBÝVÁ KUSŮ
 f_attrs = st.multiselect("Atributy", ATTRIBUTES, default=d["attrs"], key=f"fa_{fk}")
-f_rem = st.number_input("Zbývá kusů", 0, 1000, value=int(d["remaining"]), key=f"fr_{fk}")
+
+# MIN. SRDÍČKA A ZBÝVÁ KUSŮ VEDLE SEBE NA STEJNÉ ŘÁDCE
+col_f1, col_f2 = st.columns(2)
+with col_f1:
+    f_fav = st.number_input("Min. srdíčka", 0, 10000, value=int(d["fav_min"]), key=f"ff_{fk}")
+with col_f2:
+    f_rem = st.number_input("Zbývá kusů", 0, 1000, value=int(d["remaining"]), key=f"fr_{fk}")
 
 b_col1, b_col2 = st.columns(2)
 
