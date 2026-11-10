@@ -175,7 +175,8 @@ if "reset_cache_key" not in st.session_state: st.session_state.reset_cache_key =
 if "reset_form_key" not in st.session_state: st.session_state.reset_form_key = 1000
 
 for key, val in {"show_list": False, "open_detail": None, "open_detail_result": None, 
-                 "edit_index": None, "results": [], "confirm_use": None, "confirm_delete": None}.items():
+                 "edit_index": None, "results": [], "confirm_use": None, "confirm_delete": None,
+                 "confirm_clear_treasures": False}.items():
     if key not in st.session_state: st.session_state[key] = val
 
 # --- 7. SIDEBAR ---
@@ -194,6 +195,24 @@ with st.sidebar:
     
     if st.button("📥 Stáhnout balíček šablon", use_container_width=True):
         import_templates()
+
+    # TLAČÍTKO PRO VYMAZÁNÍ SEZNAMU POKLADŮ S POTVRZENÍM
+    if not st.session_state.confirm_clear_treasures:
+        if st.button("🗑️ Vymazat seznam pokladů", use_container_width=True, type="secondary"):
+            st.session_state.confirm_clear_treasures = True
+            st.rerun()
+    else:
+        st.warning("Opravdu vymazat všechny poklady?")
+        col_cl1, col_cl2 = st.columns(2)
+        if col_cl1.button("ANO", key="clr_yes", type="primary", use_container_width=True):
+            st.session_state.treasures = []
+            save()
+            st.session_state.confirm_clear_treasures = False
+            st.toast("Seznam pokladů byl vymazán!", icon="🗑️")
+            st.rerun()
+        if col_cl2.button("Ne", key="clr_no", use_container_width=True):
+            st.session_state.confirm_clear_treasures = False
+            st.rerun()
 
     st.divider()
     
@@ -251,12 +270,10 @@ if st.session_state.results:
         r_col1, r_col2, r_col3, r_col4 = st.columns([4, 2, 1, 1])
         
         note_val = t.get('note', '').strip()
-        display_name = f"{t['name']} "   "🗞️ {note_val}" if note_val else t['name']
+        display_name = f"{t['name']} — 🗞️: {note_val}" if note_val else t['name']
         r_col1.write(display_name)
         
         r_col2.write(f"Zbývá: {t['remaining']}")
-        if r_col3.button("ℹ️", key=f"res_i_{i}```"): # wait, let's make sure key doesn't have markdown
-            pass
         if r_col3.button("ℹ️", key=f"res_i_{i}"):
             st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
             st.rerun()
@@ -352,7 +369,7 @@ if st.session_state.show_list:
             if len(variants) == 1:
                 single_note = variants[0][1].get('note', '').strip()
                 if single_note:
-                    notes_str = f"      🗞️ {single_note}"
+                    notes_str = f" — 🗞️: {single_note}"
             
             col_name.write(f"{name}{notes_str} ({current_stock})")
             
@@ -470,11 +487,16 @@ else:
 
 fk = st.session_state.reset_form_key
 f_name = st.text_input("Název", value=str(d["name"]), key=f"fn_{fk}")
-f_note = st.text_input("Poznámka", value=str(d.get("note", "")), key=f"fnote_{fk}")
+
+existing_note = str(d.get("note", ""))
+with st.expander("📝 Přidat / upravit poznámku" if not existing_note else "📝 Upravit poznámku (vyplněno)"):
+    f_note = st.text_area("Poznámka / Popis", value=existing_note, key=f"fnote_{fk}", height=80)
+
 f_types = st.multiselect("Typy", CACHE_TYPES, default=d["types"], key=f"ft_{fk}")
 f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
 f_diff = st.slider("Obtížnost", 0.5, 5.0, (float(d["difficulty_min"]), float(d["difficulty_max"])), 0.5, key=f"fd_{fk}")
 f_terr = st.slider("Terén", 0.5, 5.0, (float(d["terrain_min"]), float(d["terrain_max"])), 0.5, key=f"fterr_{fk}")
+
 # ATRIBUTY NAD SEKCI SARDÍČEK A ZBÝVÁ KUSŮ
 f_attrs = st.multiselect("Atributy", ATTRIBUTES, default=d["attrs"], key=f"fa_{fk}")
 
