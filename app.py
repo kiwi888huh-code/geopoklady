@@ -41,7 +41,7 @@ if not st.session_state["logged_in"]:
     st.title("Geocaching filtr – Přihlášení")
     u_input = st.text_input("Uživatelské jméno:", disabled=st.session_state.confirm_new_user).lower().strip()
     p_input = st.text_input("Heslo:", type="password", disabled=st.session_state.confirm_new_user)
-    
+
     if not st.session_state.confirm_new_user:
         if st.button("Vstoupit"):
             if u_input and p_input:
@@ -182,7 +182,7 @@ for key, val in {"show_list": False, "open_detail": None, "open_detail_result": 
 # --- 7. SIDEBAR ---
 with st.sidebar:
     st.write(f"Uživatel: **{st.session_state['username']}**")
-    
+
     if st.button("Odhlásit se", use_container_width=True):
         localS.deleteItem("gc_user")
         st.session_state["username"] = None
@@ -190,9 +190,9 @@ with st.sidebar:
         if "treasures" in st.session_state: del st.session_state["treasures"]
         st.query_params.clear()
         st.rerun()
-    
+
     st.divider()
-    
+
     if st.button("📥 Stáhnout balíček šablon", use_container_width=True):
         import_templates()
 
@@ -215,10 +215,10 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    
+
     if "confirm_delete_account" not in st.session_state:
         st.session_state.confirm_delete_account = False
-        
+
     if not st.session_state.confirm_delete_account:
         if st.button("Smazat účet 🗑️", use_container_width=True, type="secondary"):
             st.session_state.confirm_delete_account = True
@@ -268,18 +268,18 @@ if st.session_state.results:
     st.subheader("Vhodné poklady:")
     for i, t in st.session_state.results:
         r_col1, r_col2, r_col3, r_col4 = st.columns([4, 2, 1, 1])
-        
+
         note_val = t.get('note', '').strip()
-        display_name = f"{t['name']} — 🗞️: {note_val}" if note_val else t['name']
+        display_name = f"{t['name']}      🗞️: {note_val}" if note_val else t['name']
         r_col1.write(display_name)
-        
+
         r_col2.write(f"Zbývá: {t['remaining']}")
         if r_col3.button("ℹ️", key=f"res_i_{i}"):
             st.session_state.open_detail_result = i if st.session_state.open_detail_result != i else None
             st.rerun()
         if r_col4.button("✅", key=f"use_{i}"):
             st.session_state.confirm_use = i
-        
+
         # --- SJEDNOCENÝ STYL INFORMAČNÍHO BLOKU ---
         if st.session_state.open_detail_result == i:
             with st.container():
@@ -287,27 +287,27 @@ if st.session_state.results:
                 if t['types'] and len(t['types']) < len(CACHE_TYPES):
                     safe_types = [f'<span style="white-space: nowrap;">{txt}</span>' for txt in t['types']]
                     info_lines.append(f"➖ {', '.join(safe_types)}")
-                
+
                 if t['sizes'] and len(t['sizes']) < len(SIZES):
                     info_lines.append(f"➖ {', '.join(t['sizes'])}")
-                
+
                 if t['terrain_min'] > 0.5 or t['terrain_max'] < 5.0:
                     info_lines.append(f"➖ **T:** {t['terrain_min']}–{t['terrain_max']}")
-                
+
                 if t['difficulty_min'] > 0.5 or t['difficulty_max'] < 5.0:
                     info_lines.append(f"➖ **D:** {t['difficulty_min']}–{t['difficulty_max']}")
-                
+
                 if t['fav_min'] > 0:
                     info_lines.append(f"➖ **FP:** {t['fav_min']}+")
-                
+
                 if t['attrs']:
                     info_lines.append(f"➖ **Atributy:** {', '.join(t['attrs'])}")
-                
+
                 if not info_lines:
                     st.info("Bez omezení.")
                 else:
                     st.markdown("> " + "  \n> ".join(info_lines), unsafe_allow_html=True)
-        
+
         if st.session_state.confirm_use == i:
             st.warning(f"Opravdu použít {t['name']}?")
             conf_col1, conf_col2 = st.columns(2)
@@ -336,7 +336,7 @@ if st.button("Zobrazit / skrýt seznam pokladů"):
 
 if st.session_state.show_list:
     st.header("Seznam pokladů")
-    
+
     if not st.session_state.treasures:
         st.info("Tvůj seznam pokladů je prázdný.")
         st.write("Chceš stáhnout základní balíček šablon?")
@@ -353,7 +353,7 @@ if st.session_state.show_list:
         for name, variants in grouped.items():
             min_rem = min(v[1]["remaining"] for v in variants)
             group_list.append({"name": name, "variants": variants, "min_rem": min_rem})
-        
+
         group_list = sorted(group_list, key=lambda x: x["min_rem"])
 
         for group in group_list:
@@ -364,15 +364,14 @@ if st.session_state.show_list:
             current_stock = max(v[1]["remaining"] for v in variants)
 
             col_name, col_eye, col_edit, col_del = st.columns([5, 1, 1, 1])
-            
+
             notes_str = ""
             if len(variants) == 1:
                 single_note = variants[0][1].get('note', '').strip()
                 if single_note:
-                    notes_str = f" — 🗞️: {single_note}"
-            
+                    notes_str = f"      🗞️ {single_note}"
             col_name.write(f"{name}{notes_str} ({current_stock})")
-            
+
             if col_eye.button(eye_icon, key=f"eye_group_{name}"):
                 if is_expanded: st.session_state.expanded_info.remove(name)
                 else: st.session_state.expanded_info.add(name)
@@ -442,7 +441,7 @@ if st.session_state.show_list:
                 for original_idx, t_var in variants:
                     with st.container():
                         info_lines = []
-                        
+
                         var_note = t_var.get('note', '').strip()
                         if var_note:
                             info_lines.append(f"➖ **Poznámka:** {var_note}")
@@ -450,22 +449,22 @@ if st.session_state.show_list:
                         if t_var['types'] and len(t_var['types']) < len(CACHE_TYPES):
                             safe_types_var = [f'<span style="white-space: nowrap;">{txt}</span>' for txt in t_var['types']]
                             info_lines.append(f"➖ {', '.join(safe_types_var)}")
-                        
+
                         if t_var['sizes'] and len(t_var['sizes']) < len(SIZES):
                             info_lines.append(f"➖ {', '.join(t_var['sizes'])}")
-                        
+
                         if t_var['terrain_min'] > 0.5 or t_var['terrain_max'] < 5.0:
                             info_lines.append(f"➖ **T:** {t_var['terrain_min']}–{t_var['terrain_max']}")
-                        
+
                         if t_var['difficulty_min'] > 0.5 or t_var['difficulty_max'] < 5.0:
                             info_lines.append(f"➖ **D:** {t_var['difficulty_min']}–{t_var['difficulty_max']}")
-                        
+
                         if t_var['fav_min'] > 0:
                             info_lines.append(f"➖ **FP:** {t_var['fav_min']}+")
-                        
+
                         if t_var['attrs']:
                             info_lines.append(f"➖ **Atributy:** {', '.join(t_var['attrs'])}")
-                        
+
                         if not info_lines: 
                             st.info("Bez omezení.")
                         else: 
@@ -487,10 +486,7 @@ else:
 
 fk = st.session_state.reset_form_key
 f_name = st.text_input("Název", value=str(d["name"]), key=f"fn_{fk}")
-
-existing_note = str(d.get("note", ""))
-with st.expander("📝 Přidat / upravit poznámku" if not existing_note else "📝 Upravit poznámku (vyplněno)"):
-    f_note = st.text_area("Poznámka / Popis", value=existing_note, key=f"fnote_{fk}", height=80)
+f_note = st.text_input("Poznámka", value=str(d.get("note", "")), key=f"fnote_{fk}")
 
 f_types = st.multiselect("Typy", CACHE_TYPES, default=d["types"], key=f"ft_{fk}")
 f_sizes = st.multiselect("Velikosti", SIZES, default=d["sizes"], key=f"fs_{fk}")
@@ -534,7 +530,7 @@ if b_col1.button("Uložit poklad", use_container_width=True, type="primary"):
                 if item["name"].lower() == f_name.lower():
                     dup_idx = idx
                     break
-            
+
             if dup_idx is not None:
                 st.session_state.duplicate_pending = new_entry
                 st.rerun()
@@ -554,7 +550,7 @@ if "duplicate_pending" in st.session_state:
     pending = st.session_state.duplicate_pending
     st.warning(f"Poklad se jménem **{pending['name']}** už v seznamu existuje. Co chceš udělat?")
     d_col1, d_col2, d_col3 = st.columns(3)
-    
+
     if d_col1.button("Upravit stávající", key="dup_update", use_container_width=True):
         for idx, item in enumerate(st.session_state.treasures):
             if item["name"].lower() == pending["name"].lower():
@@ -563,13 +559,13 @@ if "duplicate_pending" in st.session_state:
         save()
         del st.session_state.duplicate_pending
         st.rerun()
-        
+
     if d_col2.button("Přidat jako další duplikát", key="dup_add", use_container_width=True):
         st.session_state.treasures.append(pending)
         save()
         del st.session_state.duplicate_pending
         st.rerun()
-        
+
     if d_col3.button("Zrušit", key="dup_cancel", use_container_width=True):
         del st.session_state.duplicate_pending
         st.rerun()
