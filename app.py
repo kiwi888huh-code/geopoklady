@@ -21,10 +21,10 @@ if "confirm_new_user" not in st.session_state:
 
 def check_user_status(username):
     try:
-        res = supabase.table("treasures").select("password").eq("user_id", username).execute()
-        if res.data and any(row.get("password") for row in res.data):
-            pwd = next(row["password"] for row in res.data if row.get("password"))
-            return "exists", pwd
+        # Zjišťujeme heslo z nové tabulky "users"
+        res = supabase.table("users").select("password").eq("user_id", username).execute()
+        if res.data and res.data[0].get("password"):
+            return "exists", res.data[0]["password"]
         else:
             return "new", None
     except Exception as e:
@@ -68,12 +68,12 @@ if not st.session_state["logged_in"]:
         c1, c2 = st.columns(2)
         if c1.button("Ano, vytvořit", type="primary", use_container_width=True):
             try:
-                supabase.table("treasures").insert({
+                # Zápis nového uživatele do tabulky "users"
+                supabase.table("users").insert({
                     "user_id": u_input, 
-                    "password": p_input,
-                    "name": "_INITIAL_STATE_", 
-                    "remaining": 0
+                    "password": p_input
                 }).execute()
+                
                 st.session_state["username"] = u_input
                 st.session_state["logged_in"] = True
                 st.session_state["current_password"] = p_input 
@@ -126,8 +126,8 @@ def import_templates():
                 new_t = t.copy()
                 if "id" in new_t: del new_t["id"]
                 new_t["user_id"] = st.session_state["username"]
-                if "current_password" in st.session_state:
-                    new_t["password"] = st.session_state["current_password"]
+                # Odstraníme heslo, pokud by v šablonách náhodou bylo
+                if "password" in new_t: del new_t["password"]
                 supabase.table("treasures").insert(new_t).execute()
             st.session_state.treasures = load_data()
             st.toast("Balíček šablon stažen!", icon="📥")
@@ -139,25 +139,29 @@ def import_templates():
 
 def save():
     try:
+        # Smažeme pouze poklady daného uživatele (už nesaháme na hesla)
         supabase.table("treasures").delete().eq("user_id", st.session_state["username"]).execute()
-        supabase.table("treasures").insert({
-            "user_id": st.session_state["username"], 
-            "password": st.session_state.get("current_password"),
-            "name": "_INITIAL_STATE_", "remaining": 0
-        }).execute()
+        
+        # Uložíme aktuální poklady
         for t in st.session_state.treasures:
             t_to_save = t.copy()
             t_to_save["user_id"] = st.session_state["username"]
-            if "current_password" in st.session_state:
-                t_to_save["password"] = st.session_state["current_password"]
+            # Pojistka: odstraníme klíč password, kdyby v pokladu náhodou byl
+            if "password" in t_to_save:
+                del t_to_save["password"]
             supabase.table("treasures").insert(t_to_save).execute()
+            
         st.toast("Uloženo!", icon="💾")
     except Exception as e: 
         st.error(f"Chyba při ukládání: {e}")
 
 def delete_account():
     try:
+        # Smažeme poklady uživatele
         supabase.table("treasures").delete().eq("user_id", st.session_state["username"]).execute()
+        # Smažeme i samotného uživatele a heslo z tabulky "users"
+        supabase.table("users").delete().eq("user_id", st.session_state["username"]).execute()
+        
         localS.deleteItem("gc_user")
         st.session_state["username"] = None
         st.session_state["logged_in"] = False
